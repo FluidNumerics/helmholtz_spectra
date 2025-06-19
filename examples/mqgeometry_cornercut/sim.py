@@ -77,6 +77,36 @@ for i in range(nx//4):
     for j in range(ny//4):  
         mask[i,j] = 0.
 
+dA = dx * dy
+integral_D1 = curl_tau.sum(dim=(-2, -1)) * dA
+print("Original ∬_D f dA", integral_D1.squeeze())
+
+
+# Integrate over masked region:
+D0_mask = torch.ones(nx, ny, device=device)
+D0_mask = (1.0 - mask).to(device=device, dtype=dtype)  # D0 is the masked region
+# Expand mask to match curl_tau shape
+D0_mask_expanded = D0_mask.unsqueeze(0).unsqueeze(0)  # shape: (1, 1, nx, ny)
+
+curl_tau_D0 = curl_tau * D0_mask_expanded  # shape: (n_ens, 1, nx, ny)
+
+integral_D0 = curl_tau_D0.sum(dim=(-2, -1)) * dA  # shape: (n_ens, 1)
+print("Original ∬_D0 f dA", integral_D0.squeeze())
+
+area_D0 = D0_mask.sum() * dA  # scalar
+area_D1 = mask.sum() * dA  # scalar
+
+# Area-averaged curl over D0
+C = integral_D0 / area_D1  # shape: (n_ens, 1)
+C = C.squeeze()  # shape: (n_ens,)
+print("Contanst", C)
+
+
+curl_tau = curl_tau + C.view(-1, 1, 1, 1)
+curl_tau = mask.to(device=device) * curl_tau
+integral_D1 = curl_tau.sum(dim=(-2, -1)) * dA
+print("∬_D1 f' dA (should be ~0):", integral_D1.squeeze())
+
 param = {
     'nx': nx,
     'ny': ny,
