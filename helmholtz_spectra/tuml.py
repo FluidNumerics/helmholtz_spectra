@@ -57,6 +57,8 @@
 
 import numpy as np
 import torch
+import torch.nn.functional as F
+
 from MQGeometry.qgm import QGFV, Masks
 
 def dfdx_c(f,dx):
@@ -101,9 +103,45 @@ def dfdy_v(f,dy):
     and returns a function on tracer points."""
     return (f[...,:,1:]-f[...,:,:-1])/dy
 
+def laplacian_c(f, masku, maskv, dx, dy):
+    """2-D laplacian on the tracer points. On tracer points, we are
+    working with the divergent modes, which are associated with neumann
+    boundary conditions. """
+    return dfdx_u( dfdx_c(f,dx)*masku, dx ) + dfdy_v( dfdy_c(f,dy)*maskv, dy )
+
+def TtoU(f):
+    """Interpolates from arakawa c-grid tracer point to u-point.
+    Input is first padded in the x-direction to prolong the data
+    past the boundaries, consistent with homogeneous neumann conditions
+    for data at tracer points. """
+    fpad = F.pad( f[...,:,:], (0,0,1,1), mode='replicate')
+    return 0.5*(fpad[...,1:,:]+fpad[...,:-1,:])
+
+def TtoV(f):
+    """Interpolates from arakawa c-grid tracer point to v-point.
+    Input is first padded in the x-direction to prolong the data
+    past the boundaries, consistent with homogeneous neumann conditions
+    for data at tracer points. """
+    fpad = F.pad( f, (1,1,0,0), mode='replicate')
+    return 0.5*(fpad[...,:,1:]+fpad[...,:,:-1])   
+
+def UtoT(f):
+    return 0.5*(f[...,1:,:]+f[...,:-1,:])
+
+def VtoT(f):
+    return 0.5*(f[...,:,1:]+f[...,:,:-1])    
+
 
 class TUML(QGFV):
    
+    @property
+    def area_n(self):
+        return self.masks.q*self.dx*self.dy # area of neumann mode cells
+
+    @property
+    def area_d(self):
+        return self.masks.psi*self.dx*self.dy # area of dirichlet mode cells
+    
     def get_uv(self):
         return self.grad_perp(self.psi, self.dx, self.dy)
     
@@ -113,25 +151,62 @@ class TUML(QGFV):
     def divergence(self):
         return self.q*0.0 # Divergence for MQGeometry is always zero
 
-    def laplacian_c(f, masku, maskv, dx, dy):
-        """2-D laplacian on the tracer points. On tracer points, we are
-        working with the divergent modes, which are associated with neumann
-        boundary conditions. """
-        return dfdx_u( dfdx_c(f,dx)*masku, dx ) + dfdy_v( dfdy_c(f,dy)*maskv, dy )
-
     def apply_laplacian_n(self,x):
         """Laplacian with neumann boundary conditions"""
-        return -self.laplacian_c(x,self.masks.u,self.masks.v,self.dx,self.dy)*self.masks.q.squeeze()
-
+        return -laplacian_c(x,self.masks.u,self.masks.v,self.dx,self.dy)*self.masks.q.squeeze()
 
     def apply_laplacian_d(self,f):
         """Laplacian with dirichlet boundary conditions"""
         fm_g = self.masks.psi.squeeze()*f # Mask the data to apply homogeneous dirichlet boundary conditions
-        return -self.masks.psi.squeeze()*self.laplacian_h(fm_g,self.masks.psi,self.dx,self.dy)
+        return -self.masks.psi.squeeze()*self.laplacian_h(fm_g,self.dx,self.dy)
+    
+    def total_area_d(self):
+        return torch.sum( self.area_d ) 
+    
+    def total_area_n(self):
+        return torch.sum( self.area_n ) 
     
     def area_integral_n(self,f):
         return torch.sum(  f*self.dx*self.dy*self.masks.q )
 
     def area_integral_d(self,f):
         return torch.sum(  f*self.dx*self.dy*self.masks.psi )
+    
+    def dfdx_n(self,f):
+        """Takes the x-derivative of a function defined at the same points
+        as the neumann modes.
+        For this model, we return the derivative back on the U-points"""
+        return dfdx_c(f,self.dx)
 
+    def dfdy_n(self,f):
+        """Takes the y-derivative of a function defined at the same points
+        as the neumann modes.
+        
+        For this model, we return the derivative back on V-points"""
+        return dfdy_c(f,self.dy)
+
+    def dfdx_d(self,f):
+        """Takes the x-derivative of a function defined at the same points
+        as the dirichlet modes.
+
+        For this model, we return the derivative back on the V-points"""
+        return dfdx_u(f,self.dx)
+
+    def dfdy_d(self,f):
+        """Takes the y-derivative of a function defined at the same points
+        as the dirichlet modes.
+        For this model, we return the derivative back on the V-points
+        """
+        return dfdy_v(f,self.dy)
+    
+    def map_T_to_U(self,f):
+        return TtoU(f)
+
+    def map_T_to_V(self,f):
+        return TtoV(f)
+
+    def map_U_to_T(self,f):
+        return UtoT(f)
+
+    def map_V_to_T(self,f):
+        return VtoT(f)

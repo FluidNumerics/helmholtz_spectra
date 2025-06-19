@@ -11,3 +11,7 @@ results.*
 bin/
 build/
 *.o
+*.npz
+*.npy
+*.png
+*.pkl

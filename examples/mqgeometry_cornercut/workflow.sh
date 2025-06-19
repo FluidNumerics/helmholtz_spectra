@@ -14,6 +14,8 @@ simulation_jobid=$(sbatch --time=8:00:00 sim.sh)
 
 echo "Started MQGeometry simulation job with ID: ${simulation_jobid##* }"
 
+sleep 10 # Wait for the simulation to start
+
 ###############################################################################################
 # Compute the dirichlet and neumann modes for the domain
 ###############################################################################################

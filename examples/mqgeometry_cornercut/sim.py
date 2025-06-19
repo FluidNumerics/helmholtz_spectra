@@ -92,7 +92,8 @@ param = {
     'f0': f0,
     'beta': beta,
     'bottom_drag_coef': bottom_drag_coef,
-    'device': device,
+    'device': 'cpu',
+    'dtype': dtype,
     'dt': dt, # time-step (s)
     'case_directory': case_dir,
 }
@@ -116,6 +117,8 @@ plt.colorbar(fraction=0.046,location='right')
 plt.savefig(f'{case_dir}/neumann-mask.png')
 plt.close()
 
+# Update the MQGeometry device
+param['device'] = device
 qg = QGFV(param)
 qg.set_wind_forcing(curl_tau)
 

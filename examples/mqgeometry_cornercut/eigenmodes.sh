@@ -1,6 +1,7 @@
 #!/bin/bash
 #SBATCH -n16
 #SBATCH -c2
+#SBATCH --mem=200G
 #SBATCH --job-name=helmholtz_spectra_eigenmodes
 #SBATCH --output=./helmholtz_spectra_eigenmodes.out
 #SBATCH --error=./helmholtz_spectra_eigenmodes.out
@@ -12,8 +13,9 @@ helmholtz_spectra=/group/tdgs/joe/helmholtz_spectra
 ###############################################################################################
 #   Setup the software environment
 ###############################################################################################
-./galapagos_env.sh 
-
+source ./galapagos_env.sh  
+module list
+conda env list
 
 ###############################################################################################
 # Compute the dirichlet and neumann modes for the domain
@@ -23,7 +25,7 @@ helmholtz_spectra=/group/tdgs/joe/helmholtz_spectra
 filepath=./dirichlet.dat
 while [ ! -f "$filepath" ]; do
     echo "Waiting for $filepath to appear..."
-    sleep 1
+    sleep 30
 done
 echo "$filepath is now present."
 mpiexec -n ${SLURM_NTASKS} ${helmholtz_spectra}/bin/laplacian_modes -f ./dirichlet.dat \
@@ -34,7 +36,7 @@ mpiexec -n ${SLURM_NTASKS} ${helmholtz_spectra}/bin/laplacian_modes -f ./dirichl
 filepath=./neumann.dat
 while [ ! -f "$filepath" ]; do
     echo "Waiting for $filepath to appear..."
-    sleep 1
+    sleep 30
 done
 echo "$filepath is now present."
 # Compute the neumann modes

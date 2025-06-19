@@ -4,7 +4,6 @@ import numpy as np
 import torch
 from helmholtz_spectra.splig import splig, splig_load
 from helmholtz_spectra.tuml import TUML
-from helmholtz_spectra.mitgcm import MITgcm
 import h5py
 import pickle
 import os
