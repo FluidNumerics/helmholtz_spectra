@@ -1,0 +1,13 @@
+__pycache__/
+build/
+helmholtz_spectra.egg-info/
+*.out
+*.stdout
+results.*
+*.dat
+*.dat.info
+*.hdf5
+*.h5
+bin/
+build/
+*.o

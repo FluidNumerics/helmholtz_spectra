@@ -1,0 +1,4 @@
+numpy
+matplotlib
+--extra-index-url https://download.pytorch.org/whl/rocm6.3
+torch

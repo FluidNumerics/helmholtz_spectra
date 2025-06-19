@@ -1,0 +1,3 @@
+[submodule "MQGeometry"]
+	path = MQGeometry
+	url = https://github.com/louity/MQGeometry
