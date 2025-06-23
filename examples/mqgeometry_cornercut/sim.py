@@ -199,12 +199,11 @@ for n in range(1, n_steps+1):
               f'qabs: {qg.q.abs().sum().cpu().item():+.5E}',flush=True)
 
     if freq_save > 0 and n % freq_save == 0:
-        n_days = int(t % (24*3600) )
-        fname = os.path.join(case_dir, f'psi_{n_days:03d}d.npy')
+        fname = os.path.join(case_dir, f'psi_{n:06d}d.npy')
         np.save(fname, qg.psi.cpu().numpy().astype('float32'))
         print(f'saved psi to {fname}',flush=True)
 
-        fname = os.path.join(case_dir, f'vort_{n_days:03d}d.npy')
+        fname = os.path.join(case_dir, f'vort_{n:06d}d.npy')
         vorticity = (qg.laplacian_h(qg.psi, qg.dx, qg.dy) * qg.masks.psi).cpu()
         np.save(fname, vorticity.numpy().astype('float32'))
         print(f'saved vorticity to {fname}',flush=True)

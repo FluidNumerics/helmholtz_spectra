@@ -22,7 +22,9 @@ dependencies = [
   "torch",
   "numpy",
   "matplotlib",
-  "h5py"
+  "h5py",
+  "tqdm",
+  "futures"
 ]
 [project.urls]
 Homepage = "https://github.com/fluidnumerics/helmholtz_spectra"

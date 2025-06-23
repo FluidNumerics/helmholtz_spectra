@@ -237,6 +237,8 @@ class NMA:
             vi_m - Vorticity (Dirichlet) mode projection coefficients, interior component
             vb_m - Vorticity (Dirichlet) mode projection coefficients, interior component
         """
+        from tqdm import tqdm
+        from concurrent.futures import ThreadPoolExecutor, as_completed
 
         divu = torch.masked_select( self.model.divergence(u,v), self.mask_n == 1 )
         flat_area = torch.masked_select( self.model.area_n, self.mask_n == 1)
@@ -247,12 +249,19 @@ class NMA:
             (self.neval_n), dtype=np.float64
         )  # Projection of divergence onto the neumann modes (interior)
 
-        # Interior divergence contribution
-        for k in np.arange(self.neval_n):
+        print(f"shape(u): {u.shape}")
+        print(f"shape(v): {v.shape}")
+        print(f"shape(divu) = {divu.shape}")
+        print(f"shape(flat_area_n) = {flat_area.shape}")
+
+        def compute_div_k(k):
+
+            # Interior divergence contribution
+            #for k in np.arange(self.neval_n):
             g = self.get_flat_neumann_mode(k)
             gmag = self.norm( g, flat_area )
             ek = g/gmag
-            di_m[k] = self.inner_product(divu,ek,flat_area)  # Projection of divergence onto the neumann modes
+            di_m = self.inner_product(divu,ek,flat_area)  # Projection of divergence onto the neumann modes
 
             # Boundary divergence contribution
             g = torch.from_numpy(self.get_neumann_mode(k).data).reshape(1,self.splig_n.nx,self.splig_n.ny)
@@ -266,11 +275,23 @@ class NMA:
             divuek = torch.masked_select( self.model.divergence(eku,ekv), self.mask_n == 1 )
 
             # Then we need to compute -\int( \div( \vec{u} e_k ) dA )
-            db_m[k] = -torch.sum(divuek*flat_area)
+            db_m = -torch.sum(divuek*flat_area)
+
+            return k, di_m, db_m
+            
+        with ThreadPoolExecutor() as executor:
+            futures = {executor.submit(compute_div_k, k): k for k in range(self.neval_n)}
+            with tqdm(total=self.neval_n) as pbar:
+                for future in as_completed(futures):
+                    k, di_val, db_val = future.result()
+                    di_m[k] = di_val
+                    db_m[k] = db_val
+                    pbar.update(1)
 
         vort = torch.masked_select( self.model.vorticity(u,v), self.mask_d == 1 )
         flat_area = torch.masked_select( self.model.area_d, self.mask_d == 1)
-
+        print(f"shape(vort) = {vort.shape}")
+        print(f"shape(flat_area_d) = {flat_area.shape}")
         vb_m = np.zeros(
             (self.neval_d), dtype=np.float64
         ) # Projection of vorticity onto the dirichlet modes (boundary)
@@ -278,12 +299,22 @@ class NMA:
             (self.neval_d), dtype=np.float64
         )  # Projection of vorticity onto the dirichlet modes (interior)
 
-        for k in np.arange(self.neval_d):
+        def compute_vort_k(k):
             g = self.get_flat_dirichlet_mode(k)
             gmag = self.norm(g,flat_area)
             ek = g/gmag
-            vi_m[k] = self.inner_product(vort,ek,flat_area) # Projection of vorticity onto the dirichlet modes
+            vi_m = self.inner_product(vort,ek,flat_area) # Projection of vorticity onto the dirichlet modes
+            return k, vi_m, 0.0  # Dirichlet modes have no boundary component (presently)
 
+        with ThreadPoolExecutor() as executor:
+            futures = {executor.submit(compute_vort_k, k): k for k in range(self.neval_n)}
+            with tqdm(total=self.neval_n) as pbar:
+                for future in as_completed(futures):
+                    k, vi_val, vb_val = future.result()
+                    vi_m[k] = vi_val
+                    vb_m[k] = vb_val
+                    pbar.update(1)
+                    
         return vi_m, vb_m, di_m, db_m
 
     def eigenmode_xydecomp(self):

@@ -15,20 +15,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 import numpy.ma as ma
 from helmholtz_spectra.nma import NMA, load_param, collapse_spectra
-from helmholtz_spectra.tuml import TUML, grad_perp
-from helmholtz_spectra.mitgcm import MITgcm
+from helmholtz_spectra.tuml import TUML
 import os
 import sys
 
 plt.style.use('seaborn-v0_8-whitegrid')
 plt.switch_backend('agg')
-plt.rcParams.update({
-    "text.usetex": True,
-    "font.family": "sans-serif",
-    "font.sans-serif": "Helvetica",
-})
+# plt.rcParams.update({
+#     "text.usetex": False,
+#     "font.family": "sans-serif",
+#     "font.sans-serif": "Helvetica",
+# })
 
-force_recompute = False
+force_recompute = True
 
 # Tolerances for collapsing modes with similar eigenvalues
 collapse_atol = 1e-21
@@ -265,9 +264,9 @@ if __name__ == "__main__":
     q_mask = np.load(os.path.join(case_dir, 'q_mask.npy'))
 
     # Get the list of vort_*.npy files in the current directory
-    files = [f for f in os.listdir(case_dir) if f.startswith('vort_') and f.endswith('.npy')]
+    files = [f for f in os.listdir(case_dir) if f.startswith('psi_') and f.endswith('.npy')]
     if not files:
-        print("No vort_*.npy files found in the current directory.")
+        print("No psi_*.npy files found in the current directory.")
         sys.exit(1)
    
 
@@ -281,8 +280,11 @@ if __name__ == "__main__":
     # Load the MQGeometry stream function from .npy output
     for f in files:
         psi = np.load(os.path.join(case_dir, f))
-        nma_obj.model.psi = torch.from_numpy(psi).to(nma_obj.model.device, dtype=nma_obj.model.dtype)
-        u, v = nma_obj.model.get_uv()
+        nma_obj.model.psi = torch.from_numpy(psi).to(nma_obj.device, dtype=nma_obj.dtype)
+        u, v = nma_obj.model.get_uv() 
+        # Top layer only
+        u = u[0,0,:,:].squeeze()
+        v = v[0,0,:,:].squeeze()
         print(f"min(u), max(u) : {torch.min(u)}, {torch.max(u)}")
         print(f"min(v), max(v) : {torch.min(v)}, {torch.max(v)}")
 

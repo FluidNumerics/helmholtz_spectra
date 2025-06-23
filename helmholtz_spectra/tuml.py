@@ -145,11 +145,11 @@ class TUML(QGFV):
     def get_uv(self):
         return self.grad_perp(self.psi, self.dx, self.dy)
     
-    def vorticity(self):
-        return self.laplacian_h(self.psi, self.dx, self.dy)*self.masks.psi
+    def vorticity(self,u,v):
+        return (dfdx_v(v,self.dx) - dfdy_u(u,self.dy))*self.masks.psi
     
-    def divergence(self):
-        return self.q*0.0 # Divergence for MQGeometry is always zero
+    def divergence(self,u,v):
+        return (dfdx_u(u,self.dx) + dfdy_v(v,self.dy))*self.masks.q
 
     def apply_laplacian_n(self,x):
         """Laplacian with neumann boundary conditions"""
