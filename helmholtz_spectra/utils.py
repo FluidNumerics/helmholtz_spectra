@@ -4,7 +4,9 @@ from tqdm import tqdm
 
 def convert_to_batched_hdf5(old_h5_path, new_h5_path, batch_size=256):
     with h5py.File(old_h5_path, "r") as f_in, h5py.File(new_h5_path, "w") as f_out:
-        keys = sorted(k for k in f_in.keys() if k.startswith("Xr"))
+        _keys = [k for k in f_in.keys() if k.startswith("Xr")]
+        tag = "_".join(_keys[0].split("_")[1:])
+        keys = [f"Xr{k}_{tag}" for k in range(len(_keys))]
 
         n_modes = len(keys)
         n_points = f_in[keys[0]].shape[0]

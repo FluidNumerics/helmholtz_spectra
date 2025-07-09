@@ -26,41 +26,46 @@ def load_param(case_directory):
     with open(f'{case_directory}/param.pkl', 'rb') as f:
         return pickle.load(f)
 
-def collapse(e,rtol,atol):
-    """Collapses elements of e that are close to each other within specified tolerance"""
-    
-    n = e.shape[0]
+def collapse_spectra(evals, Ei, Eb, rtol=1e-5, atol=1e-21):
+    print(f" > Number of eigenvalues : {len(evals)}")
+
+    # Ensure inputs are numpy arrays
+    evals = np.asarray(evals)
+    Ei = np.asarray(Ei)
+    Eb = np.asarray(Eb)
+
+    # Sort eigenvalues and associated Ei/Eb
+    sort_idx = np.argsort(evals)
+    e_sorted = evals[sort_idx]
+    Ei_sorted = Ei[sort_idx]
+    Eb_sorted = Eb[sort_idx]
+
+    # Collapse eigenvalues
+    groups = []
+    group_starts = [0]
+    n = len(e_sorted)
     i = 0
-    e_collapsed = np.zeros_like(e)
     while i < n:
-        k = []
-        for j in range(i,n):
-            if np.abs(e[i]-e[j]) <= atol + rtol*e[i]:
-                k.append(i)
-            else:
-                break
-        eavg = np.mean(e[k])
-        e_collapsed[k] = eavg
-        i = k[-1]+1
-        
-    return e_collapsed
+        tol = atol + rtol * e_sorted[i]
+        j = i + 1
+        while j < n and np.abs(e_sorted[j] - e_sorted[i]) <= tol:
+            j += 1
+        group_starts.append(j)
+        groups.append((i, j))
+        i = j
 
-def collapse_spectra( evals, Ei, Eb, rtol=1e-5, atol=1e-21 ):
-        
-        print(f" > Number of eigenvalues : {len(evals)}")
-        evals_c = collapse(evals,rtol,atol)
-        evals_u = np.unique(evals_c)
-        print(f" > Number of collapsed eigenvalues : {len(evals_u)}")
+    # Aggregate collapsed eigenvalues and energy arrays
+    evals_u = []
+    Ei_u = []
+    Eb_u = []
 
-        Ei_u = np.zeros_like(evals_u)
-        Eb_u = np.zeros_like(evals_u)
-        k = 0
-        for ev in evals_u:
-            Ei_u[k] = np.sum(Ei[evals_c == ev])
-            Eb_u[k] = np.sum(Eb[evals_c == ev])
-            k+=1
+    for start, end in groups:
+        evals_u.append(np.mean(e_sorted[start:end]))
+        Ei_u.append(np.sum(Ei_sorted[start:end]))
+        Eb_u.append(np.sum(Eb_sorted[start:end]))
 
-        return evals_u, Ei_u, Eb_u
+    print(f" > Number of collapsed eigenvalues : {len(evals_u)}")
+    return np.array(evals_u), np.array(Ei_u), np.array(Eb_u)
 
 class NMA:
     """Normal Mode Analysis class"""
@@ -125,110 +130,38 @@ class NMA:
 
         self.case_directory = case_directory
         self.splig_d = splig_load(f"{case_directory}/dirichlet")
-        self.mask_d = torch.from_numpy(self.splig_d.mask)
-        print(f"Loading dirichlet mode eigenvectors from {case_directory}/dirichlet.evec.h5")
-        self.evec_d = h5py.File(f"{case_directory}/dirichlet.evec.h5",'r')
+        self.mask_d = torch.from_numpy(self.splig_d.mask).to(self.device, dtype=self.dtype)
+        if not os.path.exists(f"{case_directory}/dirichlet.evec.batched.h5"):
+            print(f"Error : dirichlet.evec.batched.h5 not found in {case_directory}. Please run the reformat_hdf5.py script to generate it from the SLEPC output.")
+            return None
+        print(f"Loading dirichlet mode eigenvectors from {case_directory}/dirichlet.evec.batched.h5")
+        self.evec_d = h5py.File(f"{case_directory}/dirichlet.evec.batched.h5",'r')["eigenmodes"]
         print(f"Loading dirichlet mode eigenvalues from {case_directory}/dirichlet.eval.h5")
         fobj = h5py.File(f"{case_directory}/dirichlet.eval.h5",'r')
         obj_key = Filter(fobj.keys(),['eigr'])[0]
         self.eval_d = fobj[obj_key][:]
 
-        # Get the keys for only the real components of the eigenvectors
-        self.evec_d_rkeys = Filter(self.evec_d.keys(),['Xr'])
-        self.evec_d_tag = "_".join(self.evec_d_rkeys[0].split("_")[1:])
 
-        self.neval_d = int(len(self.evec_d_rkeys))
+        self.neval_d = self.eval_d.shape[0]
         print(f"Number of dirichlet eigenmodes : {self.neval_d}")
         print("")
 
         self.splig_n = splig_load(f"{case_directory}/neumann")
-        self.mask_n = torch.from_numpy(self.splig_n.mask)
-        print(f"Loading neumann mode eigenvectors from {case_directory}/neumann.evec.h5")
-        self.evec_n = h5py.File(f"{case_directory}/neumann.evec.h5",'r')
+        self.mask_n = torch.from_numpy(self.splig_n.mask).to(self.device, dtype=self.dtype)
+        if not os.path.exists(f"{case_directory}/neumann.evec.batched.h5"):
+            print(f"Error : neumann.evec.batched.h5 not found in {case_directory}. Please run the reformat_hdf5.py script to generate it from the SLEPC output.")
+            return None
+        print(f"Loading neumann mode eigenvectors from {case_directory}/neumann.evec.batched.h5")
+        self.evec_n = h5py.File(f"{case_directory}/neumann.evec.batched.h5",'r')["eigenmodes"]
         print(f"Loading neumann mode eigenvalues from {case_directory}/neumann.eval.h5")
         fobj = h5py.File(f"{case_directory}/neumann.eval.h5",'r')
         obj_key = Filter(fobj.keys(),['eigr'])[0]
         self.eval_n = fobj[obj_key][:]
 
-        # Get the keys for only the real components of the eigenvectors
-        self.evec_n_rkeys = Filter(self.evec_n.keys(),['Xr'])
-        self.evec_n_tag = "_".join(self.evec_n_rkeys[0].split("_")[1:])
-
-        self.neval_n = int(len(self.evec_n_rkeys))
+        self.neval_n = self.eval_n.shape[0]
         print(f"Number of neumann eigenmodes : {self.neval_n}")
-
-        filename = f"{self.case_directory}/eval-xydecomp.npz"
-        if os.path.exists(filename):
-            with np.load(filename) as data:
-                self.n_x = data['n_x']
-                self.n_y = data['n_y']
-                self.d_x = data['d_x']
-                self.d_y = data['d_y']
-        else:
-            print(" > Computing eigenvalue xy-decomposition")
-            self.n_x, self.n_y, self.d_x, self.d_y = self.eigenmode_xydecomp()
-            np.savez( filename, n_x = self.n_x, n_y = self.n_y, d_x = self.d_x, d_y = self.d_y )
-
-    def get_dirichlet_mode(self,k):
-        import numpy as np
-        import numpy.ma as ma
-
-        if k < self.neval_d:
-            obj_key = f"Xr{k}_{self.evec_d_tag}"
-            if obj_key in list(self.evec_d_rkeys):
-                v = self.evec_d[obj_key]
-                v_gridded = ma.array( np.zeros((self.splig_d.nx,self.splig_d.ny)), dtype=np.float64, order='C', mask=np.abs(self.splig_d.mask-1),fill_value=0.0 )
-                v_gridded[~v_gridded.mask] = v
-                return v_gridded
-            else: 
-                print(f"{obj_key} not found in dirichlet eigenvectors h5 index.")
-        else:
-            print(f"{k} exceeds number of dirichlet modes {self.neval_d}")
-            return None
-
-    def get_neumann_mode(self,k):
-        import numpy as np
-        import numpy.ma as ma
-
-        if k < self.neval_n:
-            obj_key = f"Xr{k}_{self.evec_n_tag}"
-            if obj_key in list(self.evec_n_rkeys):
-                v = self.evec_n[obj_key]
-                v_gridded = ma.array( np.zeros((self.splig_n.nx,self.splig_n.ny)), dtype=np.float64, order='C', mask=np.abs(self.splig_n.mask-1),fill_value=0.0 )
-                v_gridded[~v_gridded.mask] = v
-                return v_gridded
-            else: 
-                print(f"{obj_key} not found in neumann eigenvectors h5 index.")
-        else:
-            print(f"{k} exceeds number of neumann modes {self.neval_n}")
-            return None
-
-    def get_flat_dirichlet_mode(self,k):
-        """ Returns a torch tensor for the k-th dirichlet mode. A 1-D flat array consisting of data only at the interior points is returned. """
-
-        if k < self.neval_d:
-            obj_key = f"Xr{k}_{self.evec_d_tag}"
-            if obj_key in list(self.evec_d_rkeys):
-                return torch.from_numpy(self.evec_d[obj_key][:])
-            else: 
-                print(f"{obj_key} not found in dirichlet eigenvectors h5 index.")
-        else:
-            print(f"{k} exceeds number of dirichlet modes {self.neval_d}")
-            return None
-
-    def get_flat_neumann_mode(self,k):
-
-        if k < self.neval_n:
-            obj_key = f"Xr{k}_{self.evec_n_tag}"
-            if obj_key in list(self.evec_n_rkeys):
-                return torch.from_numpy(self.evec_n[obj_key][:])
-            else: 
-                print(f"{obj_key} not found in neumann eigenvectors h5 index.")
-        else:
-            print(f"{k} exceeds number of neumann modes {self.neval_n}")
-            return None
-
-    def projection_coefficients(self,u,v):
+    
+    def projection_coefficients(self,u,v,batch_size=1000):
         """
         This routine calculates the following projection coefficiens
 
@@ -236,146 +169,63 @@ class NMA:
             db_m - Dirichlet (Neumann) mode projection coefficients, boundary component
             vi_m - Vorticity (Dirichlet) mode projection coefficients, interior component
             vb_m - Vorticity (Dirichlet) mode projection coefficients, interior component
-        """
+        """    
         from tqdm import tqdm
-        from concurrent.futures import ThreadPoolExecutor, as_completed
 
-        divu = torch.masked_select( self.model.divergence(u,v), self.mask_n == 1 )
-        flat_area = torch.masked_select( self.model.area_n, self.mask_n == 1)
-        db_m = np.zeros(
-            (self.neval_n), dtype=np.float64
+        du = self.model.divergence(u,v).squeeze() # Computes divergence field from the velocity field
+        ndof = int(self.mask_n.sum().item()) # Number of degrees of freedom
+        divu = torch.zeros((du.shape[0],ndof), dtype=self.dtype, device=self.device) # Initialize divergence field
+        for i in range(du.shape[0]):
+            divu[i] = torch.masked_select(du[i,:,:], self.mask_n == 1).to(self.device, dtype=self.dtype)
+
+        flat_area = torch.masked_select( self.model.area_n, self.mask_n == 1 ).to(self.device, dtype=self.dtype)
+        weighted_divu = divu*flat_area[None,:] # Weight the divergence field by the areashape [nT,n]
+
+        db_m = torch.zeros(
+            (self.neval_n,du.shape[0]), dtype=self.dtype, device=self.device
         )  # Projection of divergence onto the neumann modes (boundary)
-        di_m = np.zeros(
-            (self.neval_n), dtype=np.float64
+        di_m = torch.zeros(
+            (self.neval_n,du.shape[0]), dtype=self.dtype, device=self.device
         )  # Projection of divergence onto the neumann modes (interior)
 
-        print(f"shape(u): {u.shape}")
-        print(f"shape(v): {v.shape}")
-        print(f"shape(divu) = {divu.shape}")
-        print(f"shape(flat_area_n) = {flat_area.shape}")
+        for kstart in tqdm(range(0, self.neval_n, batch_size)):
+            kend = min(kstart + batch_size, self.neval_n)
+            g = torch.from_numpy(self.evec_n[kstart:kend,:]).to(dtype=self.dtype, device=self.device) 
+            gmag = torch.sqrt(torch.sum(g*g*flat_area, dim=1)) # Compute norm, shape: [batch_size,1]
+            ek = g/gmag[:,None] # Normalize and broadcase divide, shape: [batch_size,n]
+            di_m[kstart:kend,:] = torch.matmul(ek,weighted_divu.T) # Compute projection coefficient for each mode : shape [batch_size,nT] = [batch_size,n] * [n,nT]
+  
+        du = self.model.vorticity(u,v).squeeze() # Computes vorticity field from the velocity field
+        ndof = int(self.mask_d.sum().item()) # Number of degrees of freedom
+        vort = torch.zeros((du.shape[0],ndof), dtype=self.dtype, device=self.device) # Initialize vorticity field
+        for i in range(du.shape[0]):
+            vort[i] = torch.masked_select(du[i,:,:], self.mask_d == 1).to(self.device, dtype=self.dtype)
 
-        def compute_div_k(k):
+        flat_area = torch.masked_select( self.model.area_d, self.mask_d == 1).to(self.device, dtype=self.dtype)
+        weighted_vort = vort*flat_area[None,:] # shape [nT,n]
 
-            # Interior divergence contribution
-            #for k in np.arange(self.neval_n):
-            g = self.get_flat_neumann_mode(k)
-            gmag = self.norm( g, flat_area )
-            ek = g/gmag
-            di_m = self.inner_product(divu,ek,flat_area)  # Projection of divergence onto the neumann modes
-
-            # Boundary divergence contribution
-            g = torch.from_numpy(self.get_neumann_mode(k).data).reshape(1,self.splig_n.nx,self.splig_n.ny)
-            ek = g/gmag # normalize
-
-            # Map the neumann mode from the tracer points to u-points and v-points
-            eku = self.model.map_T_to_U(ek)*u
-            ekv = self.model.map_T_to_V(ek)*v
-
-            # Compute \div( \vec{u} e_k )
-            divuek = torch.masked_select( self.model.divergence(eku,ekv), self.mask_n == 1 )
-
-            # Then we need to compute -\int( \div( \vec{u} e_k ) dA )
-            db_m = -torch.sum(divuek*flat_area)
-
-            return k, di_m, db_m
-            
-        with ThreadPoolExecutor() as executor:
-            futures = {executor.submit(compute_div_k, k): k for k in range(self.neval_n)}
-            with tqdm(total=self.neval_n) as pbar:
-                for future in as_completed(futures):
-                    k, di_val, db_val = future.result()
-                    di_m[k] = di_val
-                    db_m[k] = db_val
-                    pbar.update(1)
-
-        vort = torch.masked_select( self.model.vorticity(u,v), self.mask_d == 1 )
-        flat_area = torch.masked_select( self.model.area_d, self.mask_d == 1)
-        print(f"shape(vort) = {vort.shape}")
-        print(f"shape(flat_area_d) = {flat_area.shape}")
-        vb_m = np.zeros(
-            (self.neval_d), dtype=np.float64
+        vb_m = torch.zeros(
+            (self.neval_d,du.shape[0]), dtype=self.dtype, device=self.device
         ) # Projection of vorticity onto the dirichlet modes (boundary)
-        vi_m = np.zeros(
-            (self.neval_d), dtype=np.float64
+        vi_m = torch.zeros(
+            (self.neval_d,du.shape[0]), dtype=self.dtype, device=self.device
         )  # Projection of vorticity onto the dirichlet modes (interior)
+        
+        for kstart in tqdm(range(0, self.neval_d, batch_size)):
+            kend = min(kstart + batch_size, self.neval_d)
+            print(f"Computing projection coefficients for dirichlet modes {kstart} to {kend} of {self.neval_d}")
+            g = torch.from_numpy(self.evec_d[kstart:kend,:]).to(dtype=self.dtype, device=self.device)
+            gmag = torch.sqrt(torch.sum(g*g*flat_area, dim=1))  # Compute norm, shape: [batch_size,1]
+            print(f"gmag shape: {gmag.shape}")
+            print(f"g shape: {g.shape}")
+            ek = g/gmag[:,None] # Normalize and broadcase divide, shape: [batch_size,n]
+            print(f"ek shape: {ek.shape}")
+            print(f"weighted_vort shape: {weighted_vort.shape}")
+            vi_m[kstart:kend,:] = torch.matmul(ek,weighted_vort.T) # Compute projection coefficient for each mode : shape [batch_size,nT] = [batch_size,n] * [n,nT]
 
-        def compute_vort_k(k):
-            g = self.get_flat_dirichlet_mode(k)
-            gmag = self.norm(g,flat_area)
-            ek = g/gmag
-            vi_m = self.inner_product(vort,ek,flat_area) # Projection of vorticity onto the dirichlet modes
-            return k, vi_m, 0.0  # Dirichlet modes have no boundary component (presently)
+        return vi_m.cpu().numpy(), vb_m.cpu().numpy(), di_m.cpu().numpy(), db_m.cpu().numpy()
 
-        with ThreadPoolExecutor() as executor:
-            futures = {executor.submit(compute_vort_k, k): k for k in range(self.neval_n)}
-            with tqdm(total=self.neval_n) as pbar:
-                for future in as_completed(futures):
-                    k, vi_val, vb_val = future.result()
-                    vi_m[k] = vi_val
-                    vb_m[k] = vb_val
-                    pbar.update(1)
-                    
-        return vi_m, vb_m, di_m, db_m
-
-    def eigenmode_xydecomp(self):
-        """
-        This routine computes the x and y variability of each eigenfunction from
-        the Rayleigh quotient and assigns x and y components of the eigenvectors.
-
-        This method explicitly assumes we are working on an Arakawa C-grid with the
-        Neumann modes defined at tracer points and the Dirichlet modes defined at 
-        vorticity points.
-        """
-
-        # Neumann modes
-        flat_area = torch.masked_select( self.model.area_n, self.mask_n == 1)
-        area_t = self.model.area_n*self.mask_n
-        area_u = self.model.map_T_to_U(area_t)
-        area_v = self.model.map_T_to_V(area_t)
-
-        n_x = np.zeros(
-            (self.neval_n), dtype=np.float64
-        )  # Projection of divergence onto the neumann modes (boundary)
-        n_y = np.zeros(
-            (self.neval_n), dtype=np.float64
-        )  # Projection of divergence onto the neumann modes (interior)
-
-        for k in np.arange(self.neval_n):
-            
-            g = torch.from_numpy(self.get_neumann_mode(k).data).reshape(1,self.splig_n.nx,self.splig_n.ny)
-            gmag = self.norm( g, area_t )
-            ek = g/gmag
-
-            ek_x = self.model.dfdx_n(ek)# dfdx for the neumann modes
-            n_x[k] = torch.sum( ek_x*ek_x*area_u ).cpu().numpy()  
-
-            ek_y = self.model.dfdy_n(ek)
-            n_y[k] = torch.sum( ek_y*ek_y*area_v ).cpu().numpy()  # dfdy for the neumann modes
-
-        # Dirichlet modes
-        d_x = np.zeros(
-            (self.neval_d), dtype=np.float64
-        )  # Projection of divergence onto the neumann modes (boundary)
-        d_y = np.zeros(
-            (self.neval_d), dtype=np.float64
-        )  # Projection of divergence onto the neumann modes (interior)
-
-        area_g = self.model.area_d*self.mask_d
-        for k in np.arange(self.neval_d):
-            
-            g = torch.from_numpy(self.get_dirichlet_mode(k).data).reshape(1,self.splig_d.nx,self.splig_d.ny)
-            gmag = self.norm( g, area_g )
-            ek = g/gmag
-
-            ek_x = self.model.dfdx_d(ek)# dfdx for the dirichlet modes
-            d_x[k] = torch.sum( ek_x*ek_x*area_v ).cpu().numpy()  
-
-            ek_y = self.model.dfdy_d(ek)
-            d_y[k] = torch.sum( ek_y*ek_y*area_u ).cpu().numpy()  # dfdy for the dirichlet modes
-       
-        return n_x, n_y, d_x, d_y
-
-    def spectra(self, u, v, spectra_output_file = None, rtol=1e-5, atol=1e-21):
+    def spectra(self, u, v, spectra_output_file, rtol=1e-5, atol=1e-21,batch_size=1000):
         """Calculates the energy spectra for a velocity field (u,v).
 
         The velocity field components are assumed to be on the u and v points of an arakawa c-grid.
@@ -410,42 +260,46 @@ class NMA:
 
         # Compute the projection coefficients
         print(" > Computing projection coefficients")
-        vi_m, vb_m, di_m, db_m = self.projection_coefficients(u,v)
+        vi_m, vb_m, di_m, db_m = self.projection_coefficients(u,v,batch_size)
 
         print(" > Computing energy associated with interior vorticity")
         # Calculate the energy associated with interior vorticity
         n_zeros = np.zeros_like(self.eval_n)
         zero_mode_mask = np.isclose(self.eval_n, n_zeros, rtol=rtol, atol=atol)
-        Edi = 0.5 * di_m * di_m / self.eval_n
-        Edi[zero_mode_mask] = 0.0
+        Edi = 0.5 * di_m * di_m / self.eval_n[:,None]
+        #Edi[zero_mode_mask] = 0.0
 
         print(" > Computing energy associated with boundary circulation")
         # Calculate the energy associated with boundary vorticity
-        Edb = (0.5 * db_m * db_m + di_m*db_m) / self.eval_n
-        Edb[zero_mode_mask] = 0.0
+        Edb = (0.5 * db_m * db_m + di_m*db_m) / self.eval_n[:,None]
+        #Edb[zero_mode_mask] = 0.0
 
         print(" > Computing energy associated with interior divergence")
         # Calculate the energy associated with interior divergence
-        Eri = 0.5 * vi_m * vi_m / self.eval_d
+        Eri = 0.5 * vi_m * vi_m / self.eval_d[:,None]
 
         print(" > Computing energy associated with boundary normal flow")
         # Calculate the energy associated with boundary divergence
-        Erb = (0.5 * vb_m * vb_m + vi_m*vb_m) / self.eval_d
+        Erb = (0.5 * vb_m * vb_m + vi_m*vb_m) / self.eval_d[:,None]
 
-        if not spectra_output_file == None:
-            np.savez( spectra_output_file, Eri = Eri, Erb = Erb, vi_m = vi_m, vb_m = vb_m,
+        print(f" Saving energy spectra to file {spectra_output_file}")
+        np.savez( spectra_output_file, Eri = Eri, Erb = Erb, vi_m = vi_m, vb_m = vb_m,
                                            Edi = Edi, Edb = Edb, di_m = di_m, db_m = db_m )
 
         energy_spectra = {"vorticity": {"E_interior": Eri, "E_boundary": Erb, 
-                                        "p_interior": vi_m, "p_boundary": vb_m},
+                                        "p_interior": vi_m, "p_boundary": vb_m,
+                                        "eval": self.eval_d},
                          "divergence": {"E_interior": Edi, "E_boundary": Edb, 
-                                        "p_interior": di_m, "p_boundary": db_m}}
+                                        "p_interior": di_m, "p_boundary": db_m,
+                                        "eval": self.eval_n}}
         return energy_spectra
 
     def plot_eigenmodes(self,vscale=8e-3):
         import matplotlib.pyplot as plt
         import math
         import os
+        import numpy as np
+        import numpy.ma as ma
 
         plot_dir = f'{self.case_directory}/eigenmodes'
         if not os.path.exists(plot_dir):
@@ -456,7 +310,9 @@ class NMA:
 
         for k in niter:
             f,a = plt.subplots(1,1)
-            v = self.get_neumann_mode(k)
+            vflat = self.evec_n[k,:]
+            v = ma.array( np.zeros((self.splig_n.nx,self.splig_n.ny)), dtype=np.float64, order='C', mask=np.abs(self.splig_n.mask-1),fill_value=0.0 )
+            v[~v.mask] = vflat
             im = a.imshow(v,cmap='RdBu',vmin=-vscale,vmax=vscale)
             a.grid(None)
             f.colorbar(im, ax=a,fraction=0.046,location='right')
@@ -468,7 +324,9 @@ class NMA:
 
         for k in diter:
             f,a = plt.subplots(1,1)
-            v = self.get_dirichlet_mode(k)
+            vflat = self.evec_d[k,:]
+            v = ma.array( np.zeros((self.splig_d.nx,self.splig_d.ny)), dtype=np.float64, order='C', mask=np.abs(self.splig_d.mask-1),fill_value=0.0 )
+            v[~v.mask] = vflat            
             im = a.imshow(v,cmap='RdBu',vmin=-vscale,vmax=vscale)
             a.grid(None)
             f.colorbar(im, ax=a,fraction=0.046,location='right')
