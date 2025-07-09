@@ -31,9 +31,10 @@ dy = Ly / ny
 # Time stepping parameters
 # time params
 t = 0
-n_days = 3000 # the number of days to run the simulation
-save_interval_days = 100 # save every  days
-plot_interval_days = 100 # save every 10 days
+n_days = 4000 # the number of days to run the simulation
+save_after = 2000 # save after this many days
+save_interval_days = 10 # save every 10 days
+plot_interval_days = 10 # save every 10 days
 freq_log = 1000 # Log frequency (in iterations)
 
 
@@ -45,56 +46,6 @@ if not os.path.exists(case_dir):
 xv = torch.linspace(0, Lx, nx+1, dtype=torch.float64, device=device)
 yv = torch.linspace(0, Ly, ny+1, dtype=torch.float64, device=device)
 x, y = torch.meshgrid(xv, yv, indexing='ij')
-
-mask = torch.ones(nx, ny, dtype=torch.float64, device=device)
-# Make truly irregular geometry:
-y0 = 145.0
-
-# Create integer coordinate grid similar to MATLAB's x = 0:255
-xg = torch.arange(nx, dtype=torch.float64, device=device)
-yg = torch.arange(ny, dtype=torch.float64, device=device)
-X, Y = torch.meshgrid(xg, yg, indexing='ij')  # Equivalent to MATLAB's [X,Y] = meshgrid(x,y)
-
-# Compute the first curved boundary
-f = 0.5e-6 * (Y - y0)**4
-mask = torch.zeros_like(X, dtype=torch.float64, device=device)
-mask[X - f > 0] = 1.0
-
-## Cut out right:
-# Second mask: sloped line from (x1, y1) to (xm, ym)
-x1 = 230.0
-y1 = 80.0
-xm = float(xg[-1])
-ym = float(yg[-1])
-sl = (ym - y1) / (x1 - xm)
-l = y1 + sl * (X - xm)  # l(x)
-
-# Apply the sloped boundary cut
-mask[Y > l] = 0.0
-
-# Ugly plot of the mask
-plt.figure(figsize=(6, 6))
-plt.pcolormesh(X.cpu(), Y.cpu(), mask.cpu(), shading='auto')
-plt.gca().set_aspect('equal')
-plt.title("Final domain mask")
-plt.colorbar(label='Mask')
-plt.xlabel('X index')
-plt.ylabel('Y index')
-plt.tight_layout()
-
-plt.savefig(os.path.join(case_dir, 'domain_mask.png'), dpi=150)
-plt.close()
-
-# Now save this as a npy array to load later:
-mask_cpu = mask.cpu()             # Move from GPU to CPU
-mask_np = mask_cpu.numpy()        # Convert to numpy ndarray
-# Save to case_dir
-mask_path = os.path.join(case_dir, 'mask.npy')
-np.save(mask_path, mask_np)
-print(f"Mask saved to {mask_path}")
-
-# Done with masking
-
 
 # layer thickness
 H = torch.zeros(nl,1,1, dtype=dtype, device=device)
@@ -121,7 +72,11 @@ curl_tau = curl_tau.unsqueeze(0).repeat(n_ens, 1, 1, 1)
 delta_ek = 2.
 bottom_drag_coef = delta_ek / H[-1].cpu().item() * f0 / 2
 
-
+# Domain mask
+mask = torch.ones(nx, ny)
+for i in range(nx//4):
+    for j in range(ny//4):  
+        mask[i,j] = 0.
 
 dA = dx * dy
 integral_D1 = curl_tau.sum(dim=(-2, -1)) * dA
@@ -210,6 +165,13 @@ t0 = time.time()
 n_steps = int(n_days*24*3600 / dt)
 freq_save = int(save_interval_days*24*3600 / dt)
 freq_plot = int(plot_interval_days*24*3600 / dt)
+save_after_steps = int(save_after*24*3600 / dt)
+
+print(f'Simulation parameters:\n'
+      f'  n_ens: {n_ens}, nx: {nx}, ny: {ny}, nl: {nl}\n'
+      f'  dt: {dt} s, n_steps: {n_steps}\n'
+      f'  save_after_steps: {save_after_steps}, freq_save: {freq_save}, freq_plot: {freq_plot}, freq_log: {freq_log}\n'
+      f'  case_dir: {case_dir}', flush=True)
 
 # time integration
 for n in range(1, n_steps+1):
@@ -240,19 +202,19 @@ for n in range(1, n_steps+1):
         plt.close(f)
 
     if freq_log > 0 and n % freq_log == 0:
+        # Compute upper layer energy
+        u, v = qg.grad_perp(qg.psi, qg.dx, qg.dy)
+        ke = torch.sqrt( torch.square(u[...,0,0:-1,:]) + torch.square(v[...,0,:,0:-1])).sum().cpu().item()
+
         print(f'{n=:06d}, t={t/(365*24*60**2):.2f} yr, '\
               f'q: {qg.q.sum().cpu().item():+.5E}, '\
-              f'qabs: {qg.q.abs().sum().cpu().item():+.5E}',flush=True)
+              f'qabs: {qg.q.abs().sum().cpu().item():+.5E}, '\
+              f'ke0: {ke:+.5E}',flush=True)
 
-    if freq_save > 0 and n % freq_save == 0:
+    if freq_save > 0 and n % freq_save == 0 and n >= save_after_steps:
         fname = os.path.join(case_dir, f'psi_{n:06d}d.npy')
         np.save(fname, qg.psi.cpu().numpy().astype('float32'))
         print(f'saved psi to {fname}',flush=True)
-
-        fname = os.path.join(case_dir, f'vort_{n:06d}d.npy')
-        vorticity = (qg.laplacian_h(qg.psi, qg.dx, qg.dy) * qg.masks.psi).cpu()
-        np.save(fname, vorticity.numpy().astype('float32'))
-        print(f'saved vorticity to {fname}',flush=True)
 
 total_time = time.time() - t0
 print(total_time,flush=True)

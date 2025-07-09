@@ -2,12 +2,14 @@
 
 
 # Define the local path to the helmholtz_spectra repository
-export helmholtz_spectra=/group/tdgs/joe/helmholtz_spectra
+export helmholtz_spectra=/group/tdgs/$(whoami)/helmholtz_spectra
+export workdir=/scratch/$(whoami)/mqgeometry_cornercut
+export exampledir=$(dirname "$(readlink -f "$0")")
+
 
 ###############################################################################################
 #   Setup the software environment
 ###############################################################################################
-
 module purge
 module load gcc/12.4.0
 module load rocm/6.3.0
@@ -33,5 +35,8 @@ if conda env list | grep -q "helmholtz_spectra"; then
 else
     echo "Creating environment 'helmholtz_spectra'."
     conda create -n helmholtz_spectra python=3.10 --yes
+    pip install --upgrade pip
+    pip install -r $helmholtz_spectra/requirements.txt
+    pip install -e $helmholtz_spectra
 fi
 conda activate helmholtz_spectra
