@@ -9,6 +9,9 @@
 
 # Define the local path to the helmholtz_spectra repository
 helmholtz_spectra=/group/tdgs/joe/helmholtz_spectra
+WORKDIR=/scratch/joe/mqgeometry_cornercut
+mkdir -p $WORKDIR
+cp reformat_hdf5.py $WORKDIR
 
 ###############################################################################################
 #   Setup the software environment
@@ -20,7 +23,7 @@ conda env list
 ###############################################################################################
 # Compute the dirichlet and neumann modes for the domain
 ###############################################################################################
-
+cd $WORKDIR
 # Wait until file exists
 filepath=./dirichlet.dat
 while [ ! -f "$filepath" ]; do
@@ -45,3 +48,9 @@ mpiexec -n ${SLURM_NTASKS} ${helmholtz_spectra}/bin/laplacian_modes -f ./neumann
                        -eps_type elpa \
                        -eps_view_vectors hdf5:./neumann.evec.h5 \
                        -eps_view_values hdf5:./neumann.eval.h5
+
+###############################################################################################
+# Reformat the hdf5 files to be batched
+###############################################################################################
+cd $WORKDIR
+python reformat_hdf5.py

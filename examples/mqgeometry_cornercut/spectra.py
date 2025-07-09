@@ -18,26 +18,27 @@ from helmholtz_spectra.nma import NMA, load_param, collapse_spectra
 from helmholtz_spectra.tuml import TUML
 import os
 import sys
+from torch.profiler import profile, record_function, ProfilerActivity
 
 plt.style.use('seaborn-v0_8-whitegrid')
 plt.switch_backend('agg')
-# plt.rcParams.update({
-#     "text.usetex": False,
-#     "font.family": "sans-serif",
-#     "font.sans-serif": "Helvetica",
-# })
+
+torch.backends.cudnn.deterministic = True
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+dtype = torch.float32
+print(f" Device: {device}, Data type: {dtype}",flush=True)
 
 force_recompute = True
 
 # Tolerances for collapsing modes with similar eigenvalues
 collapse_atol = 1e-21
-collapse_rtol = 1e-2
+collapse_rtol = 5e-3
 
 # Plot limits for spectra
 sp_xmin = 5e-6
 sp_xmax = 2e-3
-sp_ymin = 8e-9
-sp_ymax = 4e9
+sp_ymin = 8e-3
+sp_ymax = 5e10
 
 sp_vmin = 1e5
 sp_vmax = 1e7
@@ -46,22 +47,18 @@ case_dir = os.getenv('CASE_DIR','./')
 
 uv_iter = 0
 
-def plot_isotropic_spectra(model,spectra,model_input):
+def plot_spectra(model,spectra,model_input):
 
-    rtol = 1e-11
-    atol = 1e-13
-    # Find dirichlet eigenvalues where x and y components match
-    iso_map = np.isclose( model.d_x, model.d_y, rtol=rtol, atol=atol )
-    Eri = spectra['vorticity']['E_interior'][iso_map]
-    Erb = spectra['vorticity']['E_boundary'][iso_map]
-    e_r = model.eval_d[iso_map]
-    print(f"Number of isotropic rotational modes : {e_r.shape[0]}")
+    rtol=1.0e-2
+    atol=1.0e-21
+    e_r, Eri, Erb =  collapse_spectra( model.eval_d, spectra['vorticity']['E_interior'], spectra['vorticity']['E_boundary'], rtol=rtol, atol=atol)
+    print(f"Number of unique dirichlet eigenvalue : {e_r.shape[0]}")
 
     wavenumber = 2.0*np.pi*np.sqrt(e_r)
     plt.figure
     # dirichlet mode - rotational component
-    plt.loglog( wavenumber, Eri, label="Interior")
-    plt.loglog( wavenumber, Erb, label="Boundary" )
+    plt.loglog( wavenumber, Eri, '.', label="Interior")
+    plt.loglog( wavenumber, Erb, '.', label="Boundary" )
     plt.title("Isotropic Rotational Spectra")
     plt.xlabel("wavenumber (rad/m)")
     plt.ylabel("E ($m^4 s^{-2}$)")
@@ -69,22 +66,19 @@ def plot_isotropic_spectra(model,spectra,model_input):
     plt.grid(True, which="both", ls="-", color='0.65')
     plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
     plt.tight_layout()
-    plt.savefig(f"{model_input}.rotational_isotropic_spectra.png")
+    plt.savefig(f"{model_input}.rotational_spectra.png")
     plt.close()
 
-    # Find neumann eigenvalues where x and y components match
-    iso_map = np.isclose( model.n_x, model.n_y, rtol=rtol, atol=atol )
-    Edi = spectra['divergence']['E_interior'][iso_map]
-    Edb = spectra['divergence']['E_boundary'][iso_map]
-    e_d = model.eval_n[iso_map]
-    print(f"Number of isotropic divergent modes : {e_d.shape[0]}")
+    e_d, Edi, Edb =  collapse_spectra( model.eval_d, spectra['vorticity']['E_interior'], spectra['vorticity']['E_boundary'], rtol=rtol, atol=atol)
+
+    print(f"Number of unique neumann modes : {e_d.shape[0]}")
 
 
     wavenumber = 2.0*np.pi*np.sqrt(e_d)
     plt.figure
     # neumann mode - divergent component
-    plt.loglog( wavenumber, Edi, label="Interior" )
-    plt.loglog( wavenumber, Edb, label="Boundary" )
+    plt.loglog( wavenumber, Edi, '.', label="Interior" )
+    plt.loglog( wavenumber, Edb, '.', label="Boundary" )
     plt.title("Isotropic Divergent Spectra")
     plt.xlabel("wavenumber (rad/m)")
     plt.ylabel("E ($m^4 s^{-2}$)")
@@ -92,64 +86,7 @@ def plot_isotropic_spectra(model,spectra,model_input):
     plt.grid(True, which="both", ls="-", color='0.65')
     plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
     plt.tight_layout()
-    plt.savefig(f"{model_input}.divergent_isotropic_spectra.png")
-    plt.close()
-
-# def plot_decomposition_error(nma_obj,case_dir):
-#     """
-#     Computes the eigenvalues from the Rayleigh quotient and
-#     compares them with the eigenvalues returned from SLEPc
-#     """
-
-#     decomp_err = np.abs(nma_obj.d_x + nma_obj.d_y - nma_obj.eval_d)/nma_obj.eval_d
-#     plt.figure
-#     plt.plot( nma_obj.eval_d, decomp_err, 'k.', markersize=0.1 )
-#     plt.title("Dirichlet mode decomposition relative error")
-#     plt.xlabel("$\sigma$ ($m^{-2}$)")
-#     plt.ylabel("Error (\%)")
-#     plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
-#     plt.grid(True, which="both", ls="-", color='0.65')
-#     plt.tight_layout()
-#     plt.savefig(f"{case_dir}/dirichlet_mode_decomp_err.png")
-#     plt.close()
-
-#     decomp_err = np.abs(nma_obj.n_x + nma_obj.n_y - nma_obj.eval_n)/nma_obj.eval_n
-#     plt.figure
-#     plt.plot( nma_obj.eval_n, decomp_err, 'k.', markersize=0.1 )
-#     plt.title("Neumann mode decomposition relative error")
-#     plt.xlabel("$\lambda$ ($m^{-2}$)")
-#     plt.ylabel("Error (\%)")
-#     plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
-#     plt.grid(True, which="both", ls="-", color='0.65')
-#     plt.tight_layout()
-#     plt.savefig(f"{case_dir}/neumann_mode_decomp_err.png")
-#     plt.close()
-
-def plot_wavenumbers(nma_obj,case_dir):
-    """
-    Creates plots that draw a dot at each (e_x,e_y) point from the 
-    eigenvalue spatial decomposition (the x and y components of the Rayleigh quotient)
-    """
-    plt.figure
-    plt.plot( np.sqrt(nma_obj.d_x), np.sqrt(nma_obj.d_y), 'k.', markersize=0.1 )
-    plt.title("Dirichlet mode eigenvalue decomposition")
-    plt.xlabel("$\sqrt{\sigma_x}$ ($m^{-1}$)")
-    plt.ylabel("$\sqrt{\sigma_y}$ ($m^{-1}$)")
-    plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
-    plt.grid(True, which="both", ls="-", color='0.65')
-    plt.tight_layout()
-    plt.savefig(f"{case_dir}/dirichlet_mode_wavenumbers.png")
-    plt.close()
-
-    plt.figure
-    plt.plot( np.sqrt(nma_obj.n_x), np.sqrt(nma_obj.n_y), 'k.', markersize=0.1 )
-    plt.title("Neumann mode eigenvalue decomposition")
-    plt.xlabel("$\sqrt{\lambda_x}$ ($m^{-1}$)")
-    plt.ylabel("$\sqrt{\lambda_y}$ ($m^{-1}$)")
-    plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
-    plt.grid(True, which="both", ls="-", color='0.65')
-    plt.tight_layout()
-    plt.savefig(f"{case_dir}/neumann_mode_wavenumbers.png")
+    plt.savefig(f"{model_input}.divergent_spectra.png")
     plt.close()
 
 def plot_total_energy_budget(nma_obj,e_spectra,model_input):
@@ -188,132 +125,47 @@ def plot_total_energy_budget(nma_obj,e_spectra,model_input):
     plt.savefig(f"{model_input}.total_energy_budget.png")
     plt.close()
 
-def plot_2d_spectra(nma_obj,e_spectra,model_input):
-
-    lambda_u = nma_obj.eval_n
-    Edi_u = e_spectra['divergence']['E_interior']
-    Edb_u = e_spectra['divergence']['E_boundary']
-    sigma_u = nma_obj.eval_d
-    Eri_u = e_spectra['vorticity']['E_interior']
-    Erb_u = e_spectra['vorticity']['E_boundary']
-
-    plt.figure
-    plt.scatter( np.sqrt(nma_obj.d_x), np.sqrt(nma_obj.d_y), 
-        c=Eri_u, marker='o', edgecolor='none', cmap='Greys', s=1.5, norm="log",
-        vmin=sp_vmin, vmax=sp_vmax)
-    plt.colorbar()
-    plt.title("Interior Rotational (Dirichlet) Spectra")
-    plt.xlabel("$\sqrt{\sigma_x}$ ($m^{-1}$)")
-    plt.ylabel("$\sqrt{\sigma_y}$ ($m^{-1}$)")
-    plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
-    plt.grid(True, which="both", ls="-", color='0.65',alpha=0.5)
-    plt.gca().set_axisbelow(False)
-    plt.tight_layout()
-    plt.savefig(f"{model_input}.rotational_interior_spectra.png")
-    plt.close()
-
-    plt.figure
-    plt.scatter( np.sqrt(nma_obj.d_x), np.sqrt(nma_obj.d_y), 
-        c=Erb_u, marker='o', edgecolor='none', cmap='Greys', s=1.5, norm="log",
-        vmin=sp_vmin, vmax=sp_vmax)
-    plt.colorbar()
-    plt.title("Boundary Rotational (Dirichlet) Spectra")
-    plt.xlabel("$\sqrt{\sigma_x}$ ($m^{-1}$)")
-    plt.ylabel("$\sqrt{\sigma_y}$ ($m^{-1}$)")
-    plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
-    plt.grid(True, which="both", ls="-", color='0.65',alpha=0.5)
-    plt.gca().set_axisbelow(False)
-    plt.tight_layout()
-    plt.savefig(f"{model_input}.rotational_boundary_spectra.png")
-    plt.close()
-
-    plt.figure
-    plt.scatter( np.sqrt(nma_obj.n_x), np.sqrt(nma_obj.n_y), 
-        c=Edi_u, marker='o', edgecolor='none', cmap='Greys', s=1.5, norm="log",
-        vmin=sp_vmin, vmax=sp_vmax)
-    plt.colorbar()
-    plt.title("Interior Divergence (Neumann) Spectra")
-    plt.xlabel("$\sqrt{\lambda_x}$ ($m^{-1}$)")
-    plt.ylabel("$\sqrt{\lambda_y}$ ($m^{-1}$)")
-    plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
-    plt.grid(True, which="both", ls="-", color='0.65',alpha=0.5)
-    plt.gca().set_axisbelow(False)
-    plt.tight_layout()
-    plt.savefig(f"{model_input}.divergence_interior_spectra.png")
-    plt.close()
-
-    plt.figure
-    plt.scatter( np.sqrt(nma_obj.n_x), np.sqrt(nma_obj.n_y), 
-        c=Edb_u, marker='o', edgecolor='none', cmap='Greys', s=1.5, norm="log",
-        vmin=sp_vmin, vmax=sp_vmax)
-    plt.colorbar()
-    plt.title("Boundary Divergence (Neumann) Spectra")
-    plt.xlabel("$\sqrt{\lambda_x}$ ($m^{-1}$)")
-    plt.ylabel("$\sqrt{\lambda_y}$ ($m^{-1}$)")
-    plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
-    plt.grid(True, which="both", ls="-", color='0.65',alpha=0.5)
-    plt.gca().set_axisbelow(False)
-    plt.tight_layout()
-    plt.savefig(f"{model_input}.divergence_boundary_spectra.png")
-    plt.close()
-
 
 if __name__ == "__main__":
 
     psi_mask = np.load(os.path.join(case_dir, 'psi_mask.npy'))
     q_mask = np.load(os.path.join(case_dir, 'q_mask.npy'))
 
-    # Get the list of vort_*.npy files in the current directory
-    files = [f for f in os.listdir(case_dir) if f.startswith('psi_') and f.endswith('.npy')]
+    # Get the list of psi_*.npy files in the current directory that are not psi_mask.npy or q_mask.npy
+    if not os.path.exists(case_dir):
+        print(f"Case directory {case_dir} does not exist.")
+        sys.exit(1)
+
+    files = [f for f in os.listdir(case_dir) if f.startswith('psi_') and f.endswith('.npy') and f not in ['psi_mask.npy']]
     if not files:
         print("No psi_*.npy files found in the current directory.")
         sys.exit(1)
-   
 
     # Load parameters
     param = load_param(case_dir)
+    param['device'] = device
+    param['dtype'] = dtype
     nma_obj = NMA(param,model=TUML)
     nma_obj.load(case_dir)
 
-    plot_wavenumbers(nma_obj,case_dir)
+    print(f"Device: {nma_obj.device}")
+    print(f"Data type: {nma_obj.dtype}")
 
     # Load the MQGeometry stream function from .npy output
-    for f in files:
-        psi = np.load(os.path.join(case_dir, f))
-        nma_obj.model.psi = torch.from_numpy(psi).to(nma_obj.device, dtype=nma_obj.dtype)
-        u, v = nma_obj.model.get_uv() 
-        # Top layer only
-        u = u[0,0,:,:].squeeze()
-        v = v[0,0,:,:].squeeze()
-        print(f"min(u), max(u) : {torch.min(u)}, {torch.max(u)}")
-        print(f"min(v), max(v) : {torch.min(v)}, {torch.max(v)}")
+    tmp = np.load(os.path.join(case_dir,files[0]))
+    psi = np.empty((len(files),) + tmp.shape)
+    for i,f in enumerate(files):
+        print(f"Loading stream function from {f}")
+        psi[i] = np.load(os.path.join(case_dir, f))
+    
+    nma_obj.model.psi = torch.from_numpy(psi).to(nma_obj.device, dtype=nma_obj.dtype)
+    u, v = nma_obj.model.get_uv() # Gets velocity field from the stream function across all time levels and layers
+    u = u[:,0,0,:,:].squeeze() # Grab surface layer and no ensemble dimension
+    v = v[:,0,0,:,:].squeeze() # Grab surface layer and no
 
-        spectra_output_file = f"{case_dir}/spectra_{f[:-4]}.npz"
+    spectra_output_file = f"{case_dir}/spectra.npz"
+    with profile(activities=[ProfilerActivity.CPU,ProfilerActivity.CUDA], record_shapes=True) as prof:
+        e_spectra = nma_obj.spectra(u,v,spectra_output_file=spectra_output_file,batch_size=8000)
+    prof.export_chrome_trace("trace.json")
 
-        e_spectra = nma_obj.spectra(u,v,spectra_output_file=f"{case_dir}/spectra_{f[:-4]}.npz",)
-        #nma_obj.plot_eigenmodes()
-
-        # # lambda_m, sigma_m, Edi_m, Eri_m, Edb_m, Erb_m = nma_obj.spectra(u,v,atol=1e-5)
-        if (not os.path.exists(spectra_output_file)) or force_recompute:
-
-             print("Computing Spectra")
-             e_spectra = nma_obj.spectra(u,v,spectra_output_file)
-
-
-        else:
-            print(f"Spectra output found from previous computation. Using file {spectra_output_file}")
-            with np.load(spectra_output_file) as data:
-                Eri = data['Eri']
-                Erb = data['Erb']
-                Edi = data['Edi']
-                Edb = data['Edb']
-
-            e_spectra = {"vorticity": {"E_interior": Eri, "E_boundary": Erb},
-                        "divergence": {"E_interior": Edi, "E_boundary": Edb}}
-
-        
-        #plot_total_energy_budget(nma_obj,e_spectra,f[:-4])
-
-        plot_2d_spectra(nma_obj,e_spectra,f[:-4])
-
-        plot_isotropic_spectra(nma_obj,e_spectra,f[:-4])
+    #plot_spectra(nma_obj,e_spectra,f[:-4])

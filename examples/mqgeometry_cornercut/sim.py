@@ -31,9 +31,10 @@ dy = Ly / ny
 # Time stepping parameters
 # time params
 t = 0
-n_days = 3000 # the number of days to run the simulation
-save_interval_days = 100 # save every  days
-plot_interval_days = 100 # save every 10 days
+n_days = 4000 # the number of days to run the simulation
+save_after = 2000 # save after this many days
+save_interval_days = 10 # save every 10 days
+plot_interval_days = 10 # save every 10 days
 freq_log = 1000 # Log frequency (in iterations)
 
 
@@ -164,6 +165,13 @@ t0 = time.time()
 n_steps = int(n_days*24*3600 / dt)
 freq_save = int(save_interval_days*24*3600 / dt)
 freq_plot = int(plot_interval_days*24*3600 / dt)
+save_after_steps = int(save_after*24*3600 / dt)
+
+print(f'Simulation parameters:\n'
+      f'  n_ens: {n_ens}, nx: {nx}, ny: {ny}, nl: {nl}\n'
+      f'  dt: {dt} s, n_steps: {n_steps}\n'
+      f'  save_after_steps: {save_after_steps}, freq_save: {freq_save}, freq_plot: {freq_plot}, freq_log: {freq_log}\n'
+      f'  case_dir: {case_dir}', flush=True)
 
 # time integration
 for n in range(1, n_steps+1):
@@ -194,19 +202,19 @@ for n in range(1, n_steps+1):
         plt.close(f)
 
     if freq_log > 0 and n % freq_log == 0:
+        # Compute upper layer energy
+        u, v = qg.grad_perp(qg.psi, qg.dx, qg.dy)
+        ke = torch.sqrt( torch.square(u[...,0,0:-1,:]) + torch.square(v[...,0,:,0:-1])).sum().cpu().item()
+
         print(f'{n=:06d}, t={t/(365*24*60**2):.2f} yr, '\
               f'q: {qg.q.sum().cpu().item():+.5E}, '\
-              f'qabs: {qg.q.abs().sum().cpu().item():+.5E}',flush=True)
+              f'qabs: {qg.q.abs().sum().cpu().item():+.5E}, '\
+              f'ke0: {ke:+.5E}',flush=True)
 
-    if freq_save > 0 and n % freq_save == 0:
+    if freq_save > 0 and n % freq_save == 0 and n >= save_after_steps:
         fname = os.path.join(case_dir, f'psi_{n:06d}d.npy')
         np.save(fname, qg.psi.cpu().numpy().astype('float32'))
         print(f'saved psi to {fname}',flush=True)
-
-        fname = os.path.join(case_dir, f'vort_{n:06d}d.npy')
-        vorticity = (qg.laplacian_h(qg.psi, qg.dx, qg.dy) * qg.masks.psi).cpu()
-        np.save(fname, vorticity.numpy().astype('float32'))
-        print(f'saved vorticity to {fname}',flush=True)
 
 total_time = time.time() - t0
 print(total_time,flush=True)

@@ -28,6 +28,7 @@ echo "Started eigenmodes job with ID: ${eigenmodes_jobid##* }"
 # Calculate the spectra for each time level
 ###############################################################################################
 
-#spectra_jobid=$(sbatch --time=1:00:00 --dependency=afterok:${simulation_jobid##* }:${eigenmodes_jobid##* } spectra.sh)
+spectra_jobid=$(sbatch --time=1:00:00 --dependency=afterok:${simulation_jobid##* }:${eigenmodes_jobid##* } spectra.sh)
+spectra_jobid=$(sbatch --time=1:00:00 --dependency=afterok:${simulation_jobid##* } spectra.sh)
 
-#echo "Started spectra calculation job with ID: ${spectra_jobid##* }"
+echo "Started spectra calculation job with ID: ${spectra_jobid##* }"

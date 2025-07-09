@@ -7,6 +7,9 @@
 #SBATCH --error=./helmholtz_spectra_sim.out
 #SBATCH --nodelist=noether
 
+WORKDIR=/scratch/joe/mqgeometry_cornercut
+mkdir -p $WORKDIR
+cp sim.py $WORKDIR
 
 ###############################################################################################
 #   Setup the software environment
@@ -18,5 +21,5 @@ conda env list
 ###############################################################################################
 # Run the MQGeometry simulation
 ###############################################################################################
-
+cd $WORKDIR
 python sim.py # Launch the mqgeometry simulation
