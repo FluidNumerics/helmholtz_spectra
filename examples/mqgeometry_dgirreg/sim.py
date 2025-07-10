@@ -73,10 +73,44 @@ delta_ek = 2.
 bottom_drag_coef = delta_ek / H[-1].cpu().item() * f0 / 2
 
 # Domain mask
-mask = torch.ones(nx, ny)
-for i in range(nx//4):
-    for j in range(ny//4):  
-        mask[i,j] = 0.
+mask = torch.ones(nx, ny, dtype=torch.float64, device=device)
+# Make truly irregular geometry:
+y0 = 145.0
+
+# Create integer coordinate grid similar to MATLAB's x = 0:255
+xg = torch.arange(nx, dtype=torch.float64, device=device)
+yg = torch.arange(ny, dtype=torch.float64, device=device)
+X, Y = torch.meshgrid(xg, yg, indexing='ij')  # Equivalent to MATLAB's [X,Y] = meshgrid(x,y)
+
+# Compute the first curved boundary
+f = 0.5e-6 * (Y - y0)**4
+mask = torch.zeros_like(X, dtype=torch.float64, device=device)
+mask[X - f > 0] = 1.0
+
+## Cut out right:
+# Second mask: sloped line from (x1, y1) to (xm, ym)
+x1 = 230.0
+y1 = 80.0
+xm = float(xg[-1])
+ym = float(yg[-1])
+sl = (ym - y1) / (x1 - xm)
+l = y1 + sl * (X - xm)  # l(x)
+
+# Apply the sloped boundary cut
+mask[Y > l] = 0.0
+
+# Ugly plot of the mask
+plt.figure(figsize=(6, 6))
+plt.pcolormesh(X.cpu(), Y.cpu(), mask.cpu(), shading='auto')
+plt.gca().set_aspect('equal')
+plt.title("Final domain mask")
+plt.colorbar(label='Mask')
+plt.xlabel('X index')
+plt.ylabel('Y index')
+plt.tight_layout()
+
+plt.savefig(os.path.join(case_dir, 'domain_mask.png'), dpi=150)
+plt.close()
 
 dA = dx * dy
 integral_D1 = curl_tau.sum(dim=(-2, -1)) * dA

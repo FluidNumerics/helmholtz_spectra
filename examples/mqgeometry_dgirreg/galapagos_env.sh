@@ -3,8 +3,10 @@
 
 # Define the local path to the helmholtz_spectra repository
 export helmholtz_spectra=/group/tdgs/$(whoami)/helmholtz_spectra
-export workdir=/scratch/$(whoami)/mqgeometry_cornercut
+export workdir=/scratch/$(whoami)/mqgeometry_dgirreg
 export exampledir=$(dirname "$(readlink -f "$0")")
+
+mkdir -p $workdir
 
 
 ###############################################################################################

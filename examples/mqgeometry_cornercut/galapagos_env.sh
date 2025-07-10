@@ -6,6 +6,8 @@ export helmholtz_spectra=/group/tdgs/$(whoami)/helmholtz_spectra
 export workdir=/scratch/$(whoami)/mqgeometry_cornercut
 export exampledir=$(dirname "$(readlink -f "$0")")
 
+mkdir -p $workdir
+
 
 ###############################################################################################
 #   Setup the software environment
