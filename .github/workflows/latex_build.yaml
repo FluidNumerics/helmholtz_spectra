@@ -26,4 +26,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: compiled-pdf
-          path: main.pdf # Replace with the name of your compiled PDF
+          path: pub/main.pdf # Replace with the name of your compiled PDF
