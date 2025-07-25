@@ -19,7 +19,6 @@ jobs:
         uses: xu-cheng/latex-action@v4
         with:
           root_file: ./pub/main.tex # Replace with your main .tex file
-          working_directory: pub/
           work_in_root_file_dir: true
           compiler: latexmk # Or latexmk, xelatex, etc.
 
