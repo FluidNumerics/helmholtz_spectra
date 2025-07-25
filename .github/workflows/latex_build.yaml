@@ -18,12 +18,12 @@ jobs:
       - name: Compile LaTeX document
         uses: xu-cheng/latex-action@v2
         with:
-          root_file: your_main_document.tex # Replace with your main .tex file
+          root_file: main.tex # Replace with your main .tex file
+          working-directory: pub/
           compiler: pdflatex # Or latexmk, xelatex, etc.
 
       - name: Upload PDF artifact
         uses: actions/upload-artifact@v4
         with:
           name: compiled-pdf
-          working-directory: pub/
-          path: main.tex # Replace with the name of your compiled PDF
+          path: main.pdf # Replace with the name of your compiled PDF
