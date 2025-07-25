@@ -19,7 +19,7 @@ jobs:
         uses: xu-cheng/latex-action@v2
         with:
           root_file: main.tex # Replace with your main .tex file
-          working-directory: pub/
+          working_directory: pub/
           compiler: pdflatex # Or latexmk, xelatex, etc.
 
       - name: Upload PDF artifact
