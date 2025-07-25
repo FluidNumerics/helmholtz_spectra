@@ -31,8 +31,8 @@ dy = Ly / ny
 # Time stepping parameters
 # time params
 t = 0
-n_days = 4000 # the number of days to run the simulation
-save_after = 2000 # save after this many days
+n_days = 24000 # the number of days to run the simulation
+save_after = 8000 # save after this many days
 save_interval_days = 10 # save every 10 days
 plot_interval_days = 10 # save every 10 days
 freq_log = 1000 # Log frequency (in iterations)
@@ -173,6 +173,8 @@ print(f'Simulation parameters:\n'
       f'  save_after_steps: {save_after_steps}, freq_save: {freq_save}, freq_plot: {freq_plot}, freq_log: {freq_log}\n'
       f'  case_dir: {case_dir}', flush=True)
 
+records = []
+
 # time integration
 for n in range(1, n_steps+1):
     qg.step() # one RK3 integration step
@@ -204,13 +206,18 @@ for n in range(1, n_steps+1):
     if freq_log > 0 and n % freq_log == 0:
         # Compute upper layer energy
         u, v = qg.grad_perp(qg.psi, qg.dx, qg.dy)
-        ke = torch.sqrt( torch.square(u[...,0,0:-1,:]) + torch.square(v[...,0,:,0:-1])).sum().cpu().item()
+        ke = torch.sqrt( torch.square(u[...,0,0:-1,:]) + torch.square(v[...,0,:,0:-1])).sum().cpu().item()*dA
 
         print(f'{n=:06d}, t={t/(365*24*60**2):.2f} yr, '\
               f'q: {qg.q.sum().cpu().item():+.5E}, '\
               f'qabs: {qg.q.abs().sum().cpu().item():+.5E}, '\
               f'ke0: {ke:+.5E}',flush=True)
-
+        
+        records.append({
+                "time": t/(365*24*60**2),
+                "kinetic_energy": float(ke)
+            })
+        
     if freq_save > 0 and n % freq_save == 0 and n >= save_after_steps:
         fname = os.path.join(case_dir, f'psi_{n:06d}d.npy')
         np.save(fname, qg.psi.cpu().numpy().astype('float32'))
@@ -220,4 +227,19 @@ total_time = time.time() - t0
 print(total_time,flush=True)
 print(f'{total_time // 3600}h {(total_time % 3600) // 60} min',flush=True)
 
+
+import pandas as pd
+
+# Convert to pandas DataFrame and then to xarray Dataset
+df = pd.DataFrame(records).set_index("time")
+# Plot kinetic energy against time in this dataframe
+df['kinetic_energy'].plot(label='Kinetic Energy')
+plt.xlabel('Time (years)')
+plt.ylabel('m^4/s^2')
+plt.title('Total Kinetic Energy')
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.savefig('kinetic_energy_over_time.png')
+plt.close()
 

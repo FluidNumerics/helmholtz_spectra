@@ -25,5 +25,7 @@ python spectra.py
 ###############################################################################################
 # Copy the results back to the submit directory
 ###############################################################################################
-cp $workdir/spectra.npz $SLURM_SUBMIT_DIR # Copy the spectra results back to the submit directory
-cp $workdir/trace.json $SLURM_SUBMIT_DIR # Copy the profiling trace back to the submit directory
+cp $workdir/spectra.npz $permanent_dir/data # Copy the spectra results back to the submit directory
+cp $workdir/trace.json $permanent_dir/data # Copy the profiling trace back to the submit directory
+cp $workdir/rotational_spectra.png $permanent_dir/plots # Copy the rotational spectra back to the submit directory
+cp $workdir/divergent_spectra.png $permanent_dir/plots # Copy the divergent spectra back to the submit directory

@@ -45,17 +45,9 @@ mpiexec -n ${SLURM_NTASKS} ${helmholtz_spectra}/bin/laplacian_modes -f ./neumann
                        -eps_view_values hdf5:./neumann.eval.h5
 
 ###############################################################################################
-# Reformat the hdf5 files to be batched
-###############################################################################################
-cp $exampledir/reformat_hdf5.py $workdir
-cd $workdir
-python reformat_hdf5.py
-
-
-###############################################################################################
 # Copy the results back to the submit directory
 ###############################################################################################
-cp $workdir/dirichlet.evec.batched.h5 $SLURM_SUBMIT_DIR # Copy the dirichlet modes back to the submit directory
-cp $workdir/dirichlet.eval.h5 $SLURM_SUBMIT_DIR # Copy the dirichlet eigenvalues back to the submit directory
-cp $workdir/neumann.evec.batched.h5 $SLURM_SUBMIT_DIR # Copy the neumann modes back to the submit directory
-cp $workdir/neumann.eval.h5 $SLURM_SUBMIT_DIR # Copy the neumann eigenvalues back to the submit directory
+cp $workdir/dirichlet.evec.batched.h5 $permanent_dir/data/ # Copy the dirichlet modes back to the submit directory
+cp $workdir/dirichlet.eval.h5 $permanent_dir/data/ # Copy the dirichlet eigenvalues back to the submit directory
+cp $workdir/neumann.evec.batched.h5 $permanent_dir/data/ # Copy the neumann modes back to the submit directory
+cp $workdir/neumann.eval.h5 $permanent_dir/data/ # Copy the neumann eigenvalues back to the submit directory

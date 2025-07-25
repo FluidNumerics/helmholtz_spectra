@@ -37,8 +37,8 @@ collapse_rtol = 5e-3
 # Plot limits for spectra
 sp_xmin = 5e-6
 sp_xmax = 2e-3
-sp_ymin = 8e-3
-sp_ymax = 5e10
+sp_ymin = 1e-12
+sp_ymax = 5e-4
 
 sp_vmin = 1e5
 sp_vmax = 1e7
@@ -60,13 +60,13 @@ def plot_spectra(model,spectra):
     plt.figure
     # dirichlet mode - rotational component
     plt.loglog( wavenumber, Eri, '.', label="Interior")
-    plt.loglog( wavenumber, Erb, '.', label="Boundary" )
+    #plt.loglog( wavenumber, Erb, '.', label="Boundary" )
     plt.title("Rotational Spectra")
     plt.xlabel("wavenumber (rad/m)")
-    plt.ylabel("E ($m^4 s^{-2}$)")
+    plt.ylabel("E ($m^2 s^{-2}$)")
     plt.axis( xmin = sp_xmin, xmax = sp_xmax, ymin = sp_ymin, ymax = sp_ymax )
     plt.grid(True, which="both", ls="-", color='0.65')
-    plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
+    #plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
     plt.tight_layout()
     plt.savefig(f"rotational_spectra.png")
     plt.close()
@@ -83,7 +83,7 @@ def plot_spectra(model,spectra):
     plt.loglog( wavenumber, Edb, '.', label="Boundary" )
     plt.title("Divergent Spectra")
     plt.xlabel("wavenumber (rad/m)")
-    plt.ylabel("E ($m^4 s^{-2}$)")
+    plt.ylabel("E ($m^2 s^{-2}$)")
     plt.axis( xmin = sp_xmin, xmax = sp_xmax, ymin = sp_ymin, ymax = sp_ymax )
     plt.grid(True, which="both", ls="-", color='0.65')
     plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
@@ -110,6 +110,11 @@ if __name__ == "__main__":
     param = load_param(case_dir)
     param['device'] = device
     param['dtype'] = dtype
+    dx = param['Lx'] / param['nx']
+    dy = param['Ly'] / param['ny']
+    area = psi_mask.sum()*dx*dy
+    print(f"Area of the domain: {area:.6e} m^2")
+
     nma_obj = NMA(param,model=TUML)
     nma_obj.load(case_dir)
 
@@ -140,10 +145,10 @@ if __name__ == "__main__":
     else:
         print(f"Loading spectra from {spectra_output_file}")
         with np.load(spectra_output_file) as data:
-                Eri = np.mean(data['Eri'],axis=1)
-                Erb = np.mean(data['Erb'],axis=1)
-                Edi = np.mean(data['Edi'],axis=1)
-                Edb = np.mean(data['Edb'],axis=1)
+                Eri = np.mean(data['Eri'],axis=1)/area
+                Erb = np.mean(data['Erb'],axis=1)/area
+                Edi = np.mean(data['Edi'],axis=1)/area
+                Edb = np.mean(data['Edb'],axis=1)/area
 
         e_spectra = {"vorticity": {"E_interior": Eri, "E_boundary": Erb},
                     "divergence": {"E_interior": Edi, "E_boundary": Edb}}

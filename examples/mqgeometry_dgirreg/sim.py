@@ -31,11 +31,12 @@ dy = Ly / ny
 # Time stepping parameters
 # time params
 t = 0
-n_days = 4000 # the number of days to run the simulation
-save_after = 2000 # save after this many days
+n_days = 24000 # the number of days to run the simulation
+save_after = 8000 # save after this many days
 save_interval_days = 10 # save every 10 days
 plot_interval_days = 10 # save every 10 days
 freq_log = 1000 # Log frequency (in iterations)
+
 
 
 case_dir = "./"
@@ -238,7 +239,7 @@ for n in range(1, n_steps+1):
     if freq_log > 0 and n % freq_log == 0:
         # Compute upper layer energy
         u, v = qg.grad_perp(qg.psi, qg.dx, qg.dy)
-        ke = torch.sqrt( torch.square(u[...,0,0:-1,:]) + torch.square(v[...,0,:,0:-1])).sum().cpu().item()
+        ke = torch.sqrt( torch.square(u[...,0,0:-1,:]) + torch.square(v[...,0,:,0:-1])).sum().cpu().item()*dA
 
         print(f'{n=:06d}, t={t/(365*24*60**2):.2f} yr, '\
               f'q: {qg.q.sum().cpu().item():+.5E}, '\
