@@ -1,0 +1,29 @@
+name: Build LaTeX Document
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build_latex:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Compile LaTeX document
+        uses: xu-cheng/latex-action@v2
+        with:
+          root_file: your_main_document.tex # Replace with your main .tex file
+          compiler: pdflatex # Or latexmk, xelatex, etc.
+
+      - name: Upload PDF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-pdf
+          working-directory: pub/
+          path: main.tex # Replace with the name of your compiled PDF
