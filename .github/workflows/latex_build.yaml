@@ -40,6 +40,5 @@ jobs:
           COMMENT="🔗 [View PDF ($SHORT_SHA)](${ARTIFACT_URL})"
           gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT"
         shell: bash
-        # Requires GITHUB_TOKEN to be passed to gh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
