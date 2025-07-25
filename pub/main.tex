@@ -380,7 +380,7 @@ In this section, we describe how we discretize the elliptic equations for the ro
 
 In this work, we consider finite volume approximations to the Laplacian operators on the Arakawa C-grid. There are $N_x$ tracer cells in the x-direction and $N_y$ tracer cells in the y-direction ($q$ points in Figure \ref{fig:c-grid}). There are $(N_x+1) \times (N_y+1)$ stream-function/vorticity points ($\Psi$ points in Figure \ref{fig:c-grid}). The Dirichlet modes are defined on the $\Psi$ points, while the Neumann modes are defined on the $q$ (tracer) points. To handle irregular geometry, a mask is applied on the $\Psi$ point for the Dirichlet modes. In this arrangement, homogeneous Dirichlet boundary conditions are enforced on the $\Psi$ points on the grid boundary and at masked points for the Dirichlet modes. For the Neumann modes, Neumann boundary conditions are applied to the $u$ and $v$ points on the numerical grid boundary and at $u$ and $v$ points that lie between two masked $\Psi$ points. In a finite volume formulation, homogeneous Neumann boundary conditions on the boundaries of the tracer cells that abut irregular boundaries.
 
-Next, we define the discretization of each of the eigenmode problems. Notationally, we define a grid function $f^$ For relating tracer, $u$, $v$, $Psi$, and $q$ points, we define tracer cell $(i,j)$ has 
+Next, we define the discretization of each of the eigenmode problems. Notationally, we define a grid function $f$ For relating tracer, $u$, $v$, $Psi$, and $q$ points, we define tracer cell $(i,j)$ has 
 \begin{itemize}
     \item $u_{i,j}$ on the western face of the tracer cell
     \item $u_{i+1,j}$ on the eastern face of the tracer cell
