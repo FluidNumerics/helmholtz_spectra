@@ -32,7 +32,9 @@ cp $workdir/psi_mask.npy $permanent_dir/data # Copy the mask back to the submit 
 cp $workdir/q_mask.npy $permanent_dir/data # Copy the mask back to the submit directory
 cp $workdir/dirichlet.dat $permanent_dir/data # Copy the dirichlet.dat file back to the submit directory
 cp $workdir/dirichlet.dat.info $permanent_dir/data # Copy the dirichlet.dat.info file back to the submit directory
+cp $workdir/*.npz $permanent_dir/data # Copy any .npz files back to the submit directory
 cp $workdir/neumann.dat $permanent_dir/data # Copy the neumann.dat file back to the submit directory
 cp $workdir/neumann.dat.info $permanent_dir/data # Copy the neumann.dat.info file back to the submit directory
 cp $workdir/*.png $permanent_dir/plots # Copy any PNG files back to the submit directory
+cp $workdir/*.svg $permanent_dir/plots # Copy any PNG files back to the submit directory
 cp $workdir/param.pkl $permanent_dir/data # Copy the parameters back to the submit directory

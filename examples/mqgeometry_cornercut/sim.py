@@ -240,6 +240,6 @@ plt.title('Total Kinetic Energy')
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
-plt.savefig('kinetic_energy_over_time.png')
+plt.savefig('kinetic_energy_over_time.svg')
 plt.close()
 

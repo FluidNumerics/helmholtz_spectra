@@ -46,12 +46,94 @@
 %%%%% End Drew TeX  %%%%%%
 \journalname{Journal of Advances in Modeling Earth Systems (JAMES)}
 
-%\bibpunct{(}{)}{;}{a}{}{,}
 \begin{document}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%  TITLE
+%
+% (A title should be specific, informative, and brief. Use
+% abbreviations only if they are defined in the abstract. Titles that
+% start with general keywords then specific terms are optimized in
+% searches)
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \title{Spectra in Irregular Domains}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%  AUTHORS AND AFFILIATIONS
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Authors are individuals who have significantly contributed to the
+% research and preparation of the article. Group authors are allowed, if
+% each author in the group is separately identified in an appendix.)
+
+% List authors by first name or initial followed by last name and
+% separated by commas. Use \affil{} to number affiliations, and
+% \thanks{} for author notes.
+% Additional author notes should be indicated with \thanks{} (for
+% example, for current addresses).
+
+% Example: \authors{A. B. Author\affil{1}\thanks{Current address, Antartica}, B. C. Author\affil{2,3}, and D. E.
+% Author\affil{3,4}\thanks{Also funded by Monsanto.}}
+
+\authors{Joseph Schoonover\affil{1}, William K. Dewar\affil{2}, Andrew Poje\affil{3}, Nicolas Wienders, Garrett Byrd\affil{1}, Takaya Uchida\affil{4}}
+
+
+\affiliation{1}{Fluid Numerics LLC, Hickory, NC, USA}
+\affiliation{2}{Florida State University, Tallahassee, FL, USA}
+\affiliation{3}{City University of New York, New York, NY, USA}
+\affiliation{4}{Fourth Affiliation}
+
+% Corresponding author mailing address and e-mail address:
+\correspondingauthor{Joseph Schoonover}{joe@fluidnumerics.com}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% KEY POINTS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%  List up to three key points (at least one is required)
+%  Key Points summarize the main points and conclusions of the article
+%  Each must be 140 characters or fewer with no special characters or punctuation and must be complete sentences
+
+% Example:
+% \begin{keypoints}
+% \item	List up to three key points (at least one is required)
+% \item	Key Points summarize the main points and conclusions of the article
+% \item	Each must be 140 characters or fewer with no special characters or punctuation and must be complete sentences
+% \end{keypoints}
+
+\begin{keypoints}
+\item enter point 1 here
+\item enter point 2 here
+\item enter point 3 here
+\end{keypoints}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%  ABSTRACT and PLAIN LANGUAGE SUMMARY
+%
+% A good Abstract will begin with a short description of the problem
+% being addressed, briefly describe the new data or analyses, then
+% briefly states the main conclusion(s) and how they are supported and
+% uncertainties.
+
+% The Plain Language Summary should be written for a broad audience,
+% including journalists and the science-interested public, that will not have 
+% a background in your field.
+%
+% A Plain Language Summary is required in GRL, JGR: Planets, JGR: Biogeosciences,
+% JGR: Oceans, G-Cubed, Reviews of Geophysics, and JAMES.
+% see http://sharingscience.agu.org/creating-plain-language-summary/)
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
 \begin{abstract}
-Ocean models in realistic settings are now standard. We consider in this paper methods for their dynamic analysis, particularly calculation of their kinetic energy spatial spectra. Realistic models pose difficulties when classical methods are applied, due to spatial inhomogeneity and complex geometries. Here, we leverage the Helmholtz decomposition of a vector field to decompose a 2-D velocity field into its rotational and divergent parts, represented by a streamfunction and velocity potential. The classical problem of Helmholtz decompositions, that the associated boundary conditions are not unique, is sidestepped by arguing appropriate conditions on both cast the kinetic energy of the domain solely in terms of the rotational and divergent contributions. Further exploiting the properties of the Helmholtz equation subject to homogenous boundary conditions allows for complete representation of the streamfunction and potential in terms of orthonormal basis functions. Ultimately this leads to an exact representation of the domain kinetic energy in terms of the projections of the velocity fields on those functions and their eigenvalues, without the need for any windowing or interpolation. This is a decomposition equivalent to Parseval’s equality and permits the interpretation of the results as energy densities in eigenvalue space. Parallels between Fourier analysis and this more general approach argue that the amplitudes plotted against the eigenvalues plays the same role as Fourier based spectra. The generality of the analysis allows it to be applied to open domains, with inflow and outflow, and irregular domains with coastlines and islands. We develop a numerical discretization and a methodology for calculating the eigenfunctions and eigenvalues in complex domains on an Arakawa C-Grid . We apply the technique to some idealized quasi-geostrophic simulations in closed domains and compare the results with traditional fourier spectra to demonstrate capabilities in coping with irregular outer boundaries. We conclude with a discussion about applications to regional problems with open boundaries, geometries with islands, and models that support both rotational and divergent modes.
+Ocean models in realistic settings are now standard. We consider in this paper methods for their dynamic analysis, particularly calculation of their kinetic energy spatial spectra. Realistic models pose difficulties when classical methods are applied, due to spatial inhomogeneity and complex geometries. Here, we leverage the Helmholtz decomposition of a vector field to decompose a 2-D velocity field into its rotational and divergent parts, represented by a streamfunction and velocity potential. The classical problem of Helmholtz decompositions, that the associated boundary conditions are not unique, is sidestepped by arguing appropriate conditions on both cast the kinetic energy of the domain solely in terms of the rotational and divergent contributions. Further exploiting the properties of the Helmholtz equation subject to homogenous boundary conditions allows for complete representation of the streamfunction and velocity potential in terms of orthonormal basis functions. Ultimately this leads to an exact representation of the domain kinetic energy in terms of the projections of the velocity fields on those functions and their eigenvalues, without the need for any windowing or interpolation. This is a decomposition equivalent to Parseval’s equality and permits the interpretation of the results as energy densities in eigenvalue space. Parallels between Fourier analysis and this more general approach argue that the amplitudes plotted against the eigenvalues plays the same role as Fourier based spectra. The generality of the analysis allows it to be applied to open domains, with inflow and outflow, and irregular domains with coastlines and islands. We develop a numerical discretization and a methodology for calculating the eigenfunctions and eigenvalues in complex domains on an Arakawa C-Grid and demonstrate the calculation of spectra on GPU accelerated hardware. We apply the technique to some idealized quasi-geostrophic simulations in closed domains to demonstrate capabilities in coping with irregular outer boundaries. We conclude with a discussion about applications to regional problems with open boundaries, geometries with islands, and models that support both rotational and divergent modes.
 \end{abstract}
 
 \section{Introduction}
@@ -60,7 +142,8 @@ In the last decades, there has been a proliferation of realistic ocean models, i
 
 At the moment, there are at least two issues with the computation of spatial spectra in such models. First, ocean domains are highly irregular in space, including such complications as interior islands and complex coastlines. Classical spectral techniques are almost solely based on Fourier analysis and to apply them to such regions involves interpolation over interior land regions and data manipulation, such as windowing, to bring the domain edges into consistency with the Fourier basis. A second problem is the ocean environment is highly inhomogeneous, implying that spatial spectra computed over a large domain mix together regions of different dynamics. An example would be the North Atlantic ocean, where a subtropical domain based spatial spectra would involve the separated Gulf Stream and the quiescent interior. It is thus unclear how representative any emerging spectrum is to subregions of the domain.
 
-In view of this latter point, some recent analyses have resorted to analyzing smaller subdomains of a gyre with the idea that the associated spectra are more representative of subareas within the gyre \cite{uchida2025,uchida2022}. While recognizing the value of these approaches, the naturally occurring inflows and outflows at the domain edges are generally not periodic and require processing to force the data into forms amenable to Fourier analysis. In the above settings, a wedge is driven between the original data itself and the end state product. In the best case, this introduces artificialities into the data that obscure the meaning of the resulting spectra. In the worst case, it renders the spectral estimates invalid. We address both of these issues in this paper, the goals of which are twofold. First, we present an analysis method that avoids the above pitfalls and can lay claim to the spectral representation of kinetic energy in irregular and open domains at the same level of validity normally assigned to Fourier spectra. And, second, we apply and discuss the method in test settings that illustrate the flexibility in coping with irregular boundaries.
+%\cite{uchida2025,uchida2022}
+In view of this latter point, some recent analyses have resorted to analyzing smaller subdomains of a gyre with the idea that the associated spectra are more representative of subareas within the gyre. While recognizing the value of these approaches, the naturally occurring inflows and outflows at the domain edges are generally not periodic and require processing to force the data into forms amenable to Fourier analysis. In the above settings, a wedge is driven between the original data itself and the end state product. In the best case, this introduces artificialities into the data that obscure the meaning of the resulting spectra. In the worst case, it renders the spectral estimates invalid. We address both of these issues in this paper, the goals of which are twofold. First, we present an analysis method that avoids the above pitfalls and can lay claim to the spectral representation of kinetic energy in irregular and open domains at the same level of validity normally assigned to Fourier spectra. And, second, we apply and discuss the method in test settings that illustrate the flexibility in coping with irregular boundaries.
 
 Most realistic general circulation modeling is based in the primitive equations, which incorporate assumptions of incompressibility and small aspect ratio. The momentum equations of this set are
 \begin{subequations}
@@ -366,7 +449,7 @@ In this section, we describe how we discretize the elliptic equations for the ro
 
 \begin{figure}
     \centering
-    \includegraphics{figures/c-grid.png}
+    \includegraphics{figures/c-grid.png} %%% Update to svg
     \caption{Arakawa C-Grid.}
     \label{fig:c-grid}
 \end{figure}
@@ -454,12 +537,25 @@ One concern with this methodology is in the substantial memory requirements for 
 
 \section{Results}
 
-
+\begin{figure}
+    \centering
+    \includegraphics{figures/mqgeometry_cornercut/kinetic_energy_over_time.svg}
+    \includegraphics{figures/mqgeometry_dgirreg/kinetic_energy_over_time.svg}
+    \caption{Kinetic energy over time for the upper layer of the three-layer quasi-geostrophic model. The left panel shows the corner cut domain, while the right panel shows the irregular domain.} \label{fig:kinetic-energy-over-time}
+\end{figure}
 
 \begin{figure}
     \centering
-    \includegraphics{figures/mqgeometry_cornercut/rotational_spectra.png}
-    \includegraphics{figures/mqgeometry_dgirreg/rotational_spectra.png}
+    \includegraphics{figures/mqgeometry_cornercut/vort_518400.png} %% TODO: Update to svg
+    \includegraphics{figures/mqgeometry_dgirreg/vort_518400.png} %% TODO: Update to svg
+    \caption{Relative vorticity for the upper layer after 65 years of simulation. The left panel shows the corner cut domain, while the right panel shows the irregular domain.} \label{fig:vorticity-65-years}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics{figures/mqgeometry_cornercut/rotational_spectra.svg}
+    \includegraphics{figures/mqgeometry_dgirreg/rotational_spectra.svg}
+    \caption{Rotational spectra for the upper layer of the three-layer quasi-geostrophic model. The left panel shows the corner cut domain, while the right panel shows the irregular domain. The spectra are computed after 100 years of simulation spinup.} \label{fig:rotational-spectra}
 \end{figure}
 
 % \begin{figure}

@@ -46,6 +46,8 @@ mpiexec -n ${SLURM_NTASKS} ${helmholtz_spectra}/bin/laplacian_modes -f ./neumann
                        -eps_view_vectors hdf5:./neumann.evec.h5 \
                        -eps_view_values hdf5:./neumann.eval.h5
 
+python ${exampledir}/reformat_hdf5.py
+
 ###############################################################################################
 # Copy the results back to the submit directory
 ###############################################################################################
