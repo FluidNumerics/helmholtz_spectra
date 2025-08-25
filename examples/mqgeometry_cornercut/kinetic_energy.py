@@ -84,7 +84,7 @@ if __name__ == "__main__":
     plt.title('Total Kinetic Energy')
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig(os.path.join(plot_dir, 'kinetic_energy_over_time.svg'))
+    plt.savefig(os.path.join(plot_dir, 'kinetic_energy_over_time.eps'))
     plt.close()
 
 

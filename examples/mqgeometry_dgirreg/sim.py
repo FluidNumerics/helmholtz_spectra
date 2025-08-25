@@ -110,7 +110,7 @@ plt.xlabel('X index')
 plt.ylabel('Y index')
 plt.tight_layout()
 
-plt.savefig(os.path.join(case_dir, 'domain_mask.png'), dpi=150)
+plt.savefig(os.path.join(case_dir, 'domain_mask.eps'))
 plt.close()
 
 dA = dx * dy
@@ -174,13 +174,13 @@ nma_obj.write() # Save the nma_obj to disk in the case directory
 plt.figure()
 plt.imshow(nma_obj.mask_d,interpolation='nearest', aspect='equal')
 plt.colorbar(fraction=0.046,location='right')
-plt.savefig(f'{case_dir}/dirichlet-mask.png')
+plt.savefig(f'{case_dir}/dirichlet-mask.eps')
 plt.close()
 
 plt.figure()
 plt.imshow(nma_obj.mask_n,interpolation='nearest', aspect='equal')
 plt.colorbar(fraction=0.046,location='right')
-plt.savefig(f'{case_dir}/neumann-mask.png')
+plt.savefig(f'{case_dir}/neumann-mask.eps')
 plt.close()
 
 # Update the MQGeometry device
@@ -224,7 +224,7 @@ for n in range(1, n_steps+1):
         f.suptitle(f'Upper layer relative vorticity (units of $f_0$), {t/(365*86400):.2f} yrs')
         plt.xlabel('x (m)')
         plt.ylabel('y (m)')
-        plt.savefig(os.path.join(case_dir, f'vort_{n:06d}.png'), dpi=300)
+        plt.savefig(os.path.join(case_dir, f'vort_{n:06d}.eps'))
         plt.close(f)
 
         f,a = plt.subplots(1,1, figsize=(20,10))
@@ -233,7 +233,7 @@ for n in range(1, n_steps+1):
         f.suptitle(f'Upper layer stream function, {t/(365*86400):.2f} yrs')
         plt.xlabel('x (m)')
         plt.ylabel('y (m)')
-        plt.savefig(os.path.join(case_dir, f'psi_{n:06d}.png'), dpi=300)
+        plt.savefig(os.path.join(case_dir, f'psi_{n:06d}.eps'))
         plt.close(f)
 
     if freq_log > 0 and n % freq_log == 0:

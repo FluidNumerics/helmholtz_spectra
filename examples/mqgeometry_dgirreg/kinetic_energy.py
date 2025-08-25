@@ -84,7 +84,7 @@ if __name__ == "__main__":
     plt.title('Total Kinetic Energy')
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig(os.path.join(plot_dir, 'kinetic_energy_over_time.svg'))
+    plt.savefig(os.path.join(plot_dir, 'kinetic_energy_over_time.eps'))
     plt.close()
 
 
@@ -157,7 +157,7 @@ if __name__ == "__main__":
     #     plt.title(f'Kinetic Energy, {t/(365*86400):.2f} yrs')
     #     plt.xlabel('x(m)')
     #     plt.ylabel('y(m)')
-    #     plt.savefig(os.path.join(plot_dir, f'{f}.ke.svg'))
+    #     plt.savefig(os.path.join(plot_dir, f'{f}.ke.eps'))
     #     plt.close()
     #     print(ds)
     #     print(grid)
