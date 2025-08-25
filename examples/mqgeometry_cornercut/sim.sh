@@ -35,6 +35,5 @@ cp $workdir/dirichlet.dat.info $permanent_dir/data # Copy the dirichlet.dat.info
 cp $workdir/*.npz $permanent_dir/data # Copy any .npz files back to the submit directory
 cp $workdir/neumann.dat $permanent_dir/data # Copy the neumann.dat file back to the submit directory
 cp $workdir/neumann.dat.info $permanent_dir/data # Copy the neumann.dat.info file back to the submit directory
-cp $workdir/*.png $permanent_dir/plots # Copy any PNG files back to the submit directory
-cp $workdir/*.svg $permanent_dir/plots # Copy any PNG files back to the submit directory
+cp $workdir/*.eps $permanent_dir/plots # Copy any PNG files back to the submit directory
 cp $workdir/param.pkl $permanent_dir/data # Copy the parameters back to the submit directory
