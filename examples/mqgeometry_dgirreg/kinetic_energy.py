@@ -82,83 +82,82 @@ if __name__ == "__main__":
     plt.xlabel('Time (years)')
     plt.ylabel('m^4/s^2')
     plt.title('Total Kinetic Energy')
-    plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig(os.path.join(plot_dir, 'kinetic_energy_over_time.png'))
+    plt.savefig(os.path.join(plot_dir, 'kinetic_energy_over_time.eps'))
     plt.close()
 
 
-    # Load parameters
-    param = load_param(data_dir)
-    param['device'] = device
-    param['dtype'] = dtype
-    dx = param['Lx'] / param['nx']
-    dy = param['Ly'] / param['ny']
-    area = psi_mask.sum()*dx*dy
-    print(f"Area of the domain: {area:.6e} m^2")
+    # # Load parameters
+    # param = load_param(data_dir)
+    # param['device'] = device
+    # param['dtype'] = dtype
+    # dx = param['Lx'] / param['nx']
+    # dy = param['Ly'] / param['ny']
+    # area = psi_mask.sum()*dx*dy
+    # print(f"Area of the domain: {area:.6e} m^2")
 
-    nma_obj = NMA(param,model=TUML)
-    nma_obj.load(data_dir)
+    # nma_obj = NMA(param,model=TUML)
+    # nma_obj.load(data_dir)
 
-    print(f"Device: {nma_obj.device}")
-    print(f"Data type: {nma_obj.dtype}")
+    # print(f"Device: {nma_obj.device}")
+    # print(f"Data type: {nma_obj.dtype}")
 
     
 
-    # Load the MQGeometry stream function from .npy output
-    tmp = np.load(os.path.join(data_dir,files[0]))
-    psi = np.empty((len(files),) + tmp.shape)
-    for i,f in enumerate(files):
-        print(f"Loading stream function from {f}")
-        psi[i] = np.load(os.path.join(data_dir, f))
+    # # Load the MQGeometry stream function from .npy output
+    # tmp = np.load(os.path.join(data_dir,files[0]))
+    # psi = np.empty((len(files),) + tmp.shape)
+    # for i,f in enumerate(files):
+    #     print(f"Loading stream function from {f}")
+    #     psi[i] = np.load(os.path.join(data_dir, f))
     
-    nma_obj.model.psi = torch.from_numpy(psi).to(nma_obj.device, dtype=nma_obj.dtype)
-    u, v = nma_obj.model.get_uv() # Gets velocity field from the stream function across all time levels and layers
-    u = u[:,0,0,:,:].squeeze() # Grab surface layer and no ensemble dimension
-    v = v[:,0,0,:,:].squeeze() # Grab surface layer and no ensemble dimension
+    # nma_obj.model.psi = torch.from_numpy(psi).to(nma_obj.device, dtype=nma_obj.dtype)
+    # u, v = nma_obj.model.get_uv() # Gets velocity field from the stream function across all time levels and layers
+    # u = u[:,0,0,:,:].squeeze() # Grab surface layer and no ensemble dimension
+    # v = v[:,0,0,:,:].squeeze() # Grab surface layer and no ensemble dimension
 
-    xv = torch.linspace(0, param['Lx'], param['nx']+1, dtype=torch.float64, device=device)
-    yv = torch.linspace(0, param['Ly'], param['ny']+1, dtype=torch.float64, device=device)
-    xc = 0.5 * (xv[1:] + xv[:-1]) # cell centers
-    yc = 0.5 * (yv[1:] + yv[:-1]) # cell centers
+    # xv = torch.linspace(0, param['Lx'], param['nx']+1, dtype=torch.float64, device=device)
+    # yv = torch.linspace(0, param['Ly'], param['ny']+1, dtype=torch.float64, device=device)
+    # xc = 0.5 * (xv[1:] + xv[:-1]) # cell centers
+    # yc = 0.5 * (yv[1:] + yv[:-1]) # cell centers
 
-    import xarray as xarray
-    import xgcm
-    print(xc.size(), yc.size(), xv[:-1].size(), yv[:-1].size())
-    print(u.shape, v.shape)
-    ds = xarray.Dataset(
-        data_vars={
-            'U': (['time', 'yc', 'xv'], u[:,:-1,:].cpu().numpy()),
-            'V': (['time', 'yv', 'xc'], v[:,:,:-1].cpu().numpy())
-        },
-        coords={
-            'xc': (['xc'], xc.cpu().numpy()),
-            'xv': (['xv'], xv[:-1].cpu().numpy()),
-            'yc': (['yc'], yc.cpu().numpy()),
-            'yv': (['yv'], yv[:-1].cpu().numpy()),
-            'time': (['time'], np.arange(u.shape[0]))
-        },
+    # import xarray as xarray
+    # import xgcm
+    # print(xc.size(), yc.size(), xv[:-1].size(), yv[:-1].size())
+    # print(u.shape, v.shape)
+    # ds = xarray.Dataset(
+    #     data_vars={
+    #         'U': (['time', 'yc', 'xv'], u[:,:-1,:].cpu().numpy()),
+    #         'V': (['time', 'yv', 'xc'], v[:,:,:-1].cpu().numpy())
+    #     },
+    #     coords={
+    #         'xc': (['xc'], xc.cpu().numpy()),
+    #         'xv': (['xv'], xv[:-1].cpu().numpy()),
+    #         'yc': (['yc'], yc.cpu().numpy()),
+    #         'yv': (['yv'], yv[:-1].cpu().numpy()),
+    #         'time': (['time'], np.arange(u.shape[0]))
+    #     },
 
-    )
+    # )
 
-    grid = xgcm.Grid(ds, coords={
-        'X': {'center': 'xc', 'left': 'xv'},
-        'Y': {'center': 'yc', 'left': 'yv'},
-        'T': {'center': 'time'}
-    })
-    ut = grid.interp(ds['U'], axis='X')
-    vt = grid.interp(ds['V'], axis='Y')
-    ke = 0.5 * (ut**2 + vt**2)
-    for i,f in enumerate(files):
-        iterate = int(f.split('_')[1].split('.')[0][:-1])
-        t=iterate*param['dt']
-        ke_plot = ke[i,:,:].transpose('xc', 'yc').compute()
-        ke_plot.plot(vmin=0, vmax=0.5, cmap='binary')
-        plt.title(f'Kinetic Energy, {t/(365*86400):.2f} yrs')
-        plt.xlabel('x(m)')
-        plt.ylabel('y(m)')
-        plt.savefig(os.path.join(plot_dir, f'{f}.ke.png'))
-        plt.close()
-        print(ds)
-        print(grid)
+    # grid = xgcm.Grid(ds, coords={
+    #     'X': {'center': 'xc', 'left': 'xv'},
+    #     'Y': {'center': 'yc', 'left': 'yv'},
+    #     'T': {'center': 'time'}
+    # })
+    # ut = grid.interp(ds['U'], axis='X')
+    # vt = grid.interp(ds['V'], axis='Y')
+    # ke = 0.5 * (ut**2 + vt**2)
+    # for i,f in enumerate(files):
+    #     iterate = int(f.split('_')[1].split('.')[0][:-1])
+    #     t=iterate*param['dt']
+    #     ke_plot = ke[i,:,:].transpose('xc', 'yc').compute()
+    #     ke_plot.plot(vmin=0, vmax=0.5, cmap='binary')
+    #     plt.title(f'Kinetic Energy, {t/(365*86400):.2f} yrs')
+    #     plt.xlabel('x(m)')
+    #     plt.ylabel('y(m)')
+    #     plt.savefig(os.path.join(plot_dir, f'{f}.ke.eps'))
+    #     plt.close()
+    #     print(ds)
+    #     print(grid)

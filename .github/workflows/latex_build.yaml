@@ -16,14 +16,30 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Compile LaTeX document
-        uses: xu-cheng/latex-action@v2
+        uses: xu-cheng/latex-action@v4
         with:
-          root_file: your_main_document.tex # Replace with your main .tex file
-          compiler: pdflatex # Or latexmk, xelatex, etc.
+          root_file: main.tex # Replace with your main .tex file
+          working_directory: pub/
+          compiler: latexmk # Or latexmk, xelatex, etc.
 
       - name: Upload PDF artifact
+        id: upload_pdf
         uses: actions/upload-artifact@v4
         with:
           name: compiled-pdf
-          working-directory: pub/
-          path: main.tex # Replace with the name of your compiled PDF
+          path: pub/main.pdf # Replace with the name of your compiled PDF
+
+      - name: Comment on PR with artifact link
+        if: github.event_name == 'pull_request'
+        env:
+          RUN_ID: ${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          ARTIFACT_URL: ${{ steps.upload_pdf.outputs.artifact-url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          COMMENT="🔗 [View PDF ($SHORT_SHA)](${ARTIFACT_URL})"
+          gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT"
+
+          

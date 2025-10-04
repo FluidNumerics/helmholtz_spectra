@@ -7,7 +7,6 @@ export workdir=/scratch/$(whoami)/mqgeometry_dgirreg
 export exampledir=$helmholtz_spectra/examples/mqgeometry_dgirreg
 export permanent_dir=$helmholtz_spectra/examples/mqgeometry_dgirreg/output
 
-rm -rf $workdir # Remove the work directory if it exists
 mkdir -p $workdir
 mkdir -p $permanent_dir
 mkdir -p $permanent_dir/data

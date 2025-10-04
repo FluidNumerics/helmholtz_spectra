@@ -68,7 +68,7 @@ def plot_spectra(model,spectra):
     plt.grid(True, which="both", ls="-", color='0.65')
     #plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
     plt.tight_layout()
-    plt.savefig(f"rotational_spectra.png")
+    plt.savefig(f"rotational_spectra.eps")
     plt.close()
 
     print("===================================")
@@ -88,7 +88,7 @@ def plot_spectra(model,spectra):
     plt.grid(True, which="both", ls="-", color='0.65')
     plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
     plt.tight_layout()
-    plt.savefig(f"divergent_spectra.png")
+    plt.savefig(f"divergent_spectra.eps")
     plt.close()
 
 if __name__ == "__main__":

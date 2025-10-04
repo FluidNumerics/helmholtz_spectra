@@ -37,13 +37,15 @@ collapse_rtol = 5e-3
 # Plot limits for spectra
 sp_xmin = 5e-6
 sp_xmax = 2e-3
-sp_ymin = 1e-12
+sp_ymin = 1e-14
 sp_ymax = 5e-4
 
 sp_vmin = 1e5
 sp_vmax = 1e7
 
-case_dir = os.getenv('CASE_DIR','./')
+case_dir = os.getenv('CASE_DIR','./output/')
+data_dir = os.path.join(case_dir,'data/')
+plot_dir = os.path.join(case_dir,'plots/')
 
 uv_iter = 0
 
@@ -62,13 +64,13 @@ def plot_spectra(model,spectra):
     plt.loglog( wavenumber, Eri, '.', label="Interior")
     #plt.loglog( wavenumber, Erb, '.', label="Boundary" )
     plt.title("Rotational Spectra")
-    plt.xlabel("wavenumber (rad/m)")
+    plt.xlabel("\sqrt{\lambda} (1/m)")
     plt.ylabel("E ($m^2 s^{-2}$)")
     plt.axis( xmin = sp_xmin, xmax = sp_xmax, ymin = sp_ymin, ymax = sp_ymax )
     plt.grid(True, which="both", ls="-", color='0.65')
-    #plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
+    plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
     plt.tight_layout()
-    plt.savefig(f"rotational_spectra.png")
+    plt.savefig(f"rotational_spectra.eps")
     plt.close()
 
     print("===================================")
@@ -76,38 +78,38 @@ def plot_spectra(model,spectra):
     print("===================================")
     e_d, Edi, Edb =  collapse_spectra( model.eval_n, spectra['divergence']['E_interior'], spectra['divergence']['E_boundary'], rtol=rtol, atol=atol)
 
-    wavenumber = 2.0*np.pi*np.sqrt(e_d)
+    wavenumber = np.sqrt(e_d)
     plt.figure
     # neumann mode - divergent component
     plt.loglog( wavenumber, Edi, '.', label="Interior" )
     plt.loglog( wavenumber, Edb, '.', label="Boundary" )
     plt.title("Divergent Spectra")
-    plt.xlabel("wavenumber (rad/m)")
+    plt.xlabel("\sqrt{\sigma} (1/m)")
     plt.ylabel("E ($m^2 s^{-2}$)")
     plt.axis( xmin = sp_xmin, xmax = sp_xmax, ymin = sp_ymin, ymax = sp_ymax )
     plt.grid(True, which="both", ls="-", color='0.65')
     plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
     plt.tight_layout()
-    plt.savefig(f"divergent_spectra.png")
+    plt.savefig(f"divergent_spectra.eps")
     plt.close()
 
 if __name__ == "__main__":
 
-    psi_mask = np.load(os.path.join(case_dir, 'psi_mask.npy'))
-    q_mask = np.load(os.path.join(case_dir, 'q_mask.npy'))
+    psi_mask = np.load(os.path.join(data_dir, 'psi_mask.npy'))
+    q_mask = np.load(os.path.join(data_dir, 'q_mask.npy'))
 
     # Get the list of psi_*.npy files in the current directory that are not psi_mask.npy or q_mask.npy
-    if not os.path.exists(case_dir):
-        print(f"Case directory {case_dir} does not exist.")
+    if not os.path.exists(data_dir):
+        print(f"Case directory {data_dir} does not exist.")
         sys.exit(1)
 
-    files = [f for f in os.listdir(case_dir) if f.startswith('psi_') and f.endswith('.npy') and f not in ['psi_mask.npy']]
+    files = [f for f in os.listdir(data_dir) if f.startswith('psi_') and f.endswith('.npy') and f not in ['psi_mask.npy']]
     if not files:
         print("No psi_*.npy files found in the current directory.")
         sys.exit(1)
 
     # Load parameters
-    param = load_param(case_dir)
+    param = load_param(data_dir)
     param['device'] = device
     param['dtype'] = dtype
     dx = param['Lx'] / param['nx']
@@ -116,23 +118,23 @@ if __name__ == "__main__":
     print(f"Area of the domain: {area:.6e} m^2")
 
     nma_obj = NMA(param,model=TUML)
-    nma_obj.load(case_dir)
+    nma_obj.load(data_dir)
 
     print(f"Device: {nma_obj.device}")
     print(f"Data type: {nma_obj.dtype}")
 
     nma_obj.plot_eigenmodes()
 
-    spectra_output_file = f"{case_dir}/spectra.npz"
+    spectra_output_file = f"{data_dir}/spectra.npz"
 
-    if not os.path.exists(f"{case_dir}/spectra.npz") or force_recompute :
+    if not os.path.exists(f"{data_dir}/spectra.npz") or force_recompute :
 
         # Load the MQGeometry stream function from .npy output
-        tmp = np.load(os.path.join(case_dir,files[0]))
+        tmp = np.load(os.path.join(data_dir,files[0]))
         psi = np.empty((len(files),) + tmp.shape)
         for i,f in enumerate(files):
             print(f"Loading stream function from {f}")
-            psi[i] = np.load(os.path.join(case_dir, f))
+            psi[i] = np.load(os.path.join(data_dir, f))
         
         nma_obj.model.psi = torch.from_numpy(psi).to(nma_obj.device, dtype=nma_obj.dtype)
         u, v = nma_obj.model.get_uv() # Gets velocity field from the stream function across all time levels and layers
